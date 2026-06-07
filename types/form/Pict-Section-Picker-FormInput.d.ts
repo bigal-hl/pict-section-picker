@@ -27,6 +27,12 @@ declare class PictInputTypePicker extends PictInputTypePicker_base {
         TextField: any;
         PageSize: any;
         Options: any;
+        JoinEntity: any;
+        JoinField: any;
+        JoinEntityValueField: any;
+        JoinEntityDisplayField: any;
+        JoinEntityFirst: any;
+        JoinSeparator: any;
         BaseFilter: () => string | string[];
         OnChange: any;
     };

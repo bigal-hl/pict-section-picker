@@ -117,6 +117,37 @@ Entity-source configuration:
 
 The lower-level builders are also exposed: `createEntityDataProvider(cfg)` and `createEntityResolveValue(cfg)` return the raw functions if you want to wire them yourself.
 
+## Joined display (parent-entity context)
+
+Sometimes a searched entity is ambiguous on its own — a `LineItem` only makes sense next to its `Project`, a `Review` next to its `Book`. Set `JoinEntity` and the picker renders a **compound** label by joining each searched row to a parent entity through a foreign key the row carries:
+
+```javascript
+tmpPicker.createEntityPicker('ReviewPicker',
+{
+    Entity: 'Review',
+    SearchFields: [ 'Summary' ],
+    JoinEntity: 'Book',                 // the parent entity to join
+    JoinField: 'IDBook',                // the FK on the Review row -> Book
+    JoinEntityDisplayField: 'Title',    // the Book field to show
+    DestinationAddress: '#ReviewPicker',
+    ValueAddress: 'AppData.Form.IDReview',
+});
+// options render as "Neuromancer - Loved it"; the Value is still IDReview.
+```
+
+Meadow can't join in a single read, so this is **fetch-then-merge**: after each search page the picker collects the rows' unique FK ids and issues **one** `FBL~ID{JoinEntity}~INN~<ids>` request, then stitches the joined display onto every row (also exposed as `Record.JoinName` / `Record.JoinRecord` for `MapRecord` / templates). The same join resolves a pre-bound value's label on first render.
+
+| Option | Default | Purpose |
+|---|---|---|
+| `JoinEntity` | — | Parent entity to join for the compound display. Setting it enables the feature. |
+| `JoinField` | `ID<JoinEntity>` | The FK column **on the searched row** pointing at `JoinEntity`. |
+| `JoinEntityValueField` | `ID<JoinEntity>` | The PK column on `JoinEntity` to match (the `INN` column). |
+| `JoinEntityDisplayField` | `'Name'` | The `JoinEntity` field shown in the compound label. |
+| `JoinEntityFirst` | `true` | `true` → `Parent - Row`; `false` → `Row - Parent`. |
+| `JoinSeparator` | `' - '` | Separator between the two parts. |
+
+The same options ride through the form-input adapter (`PictForm.JoinEntity`, …) and the pict-section-recordset entity filters (set `JoinEntity` on the clause) — so an entity filter can show parent context for its options with no host code, layered on top of either the 1:1 (direct-FK / `InternalJoin`) or 1:many (junction / `ExternalJoin`) filter relationship.
+
 ## Categories
 
 Give option rows an optional `Group` field and the list renders headered sections (preserving order; rows without a `Group` fall into a leading unlabeled section):

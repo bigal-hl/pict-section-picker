@@ -117,6 +117,14 @@ class PictInputTypePicker extends libPictInputExtension
 			TextField: tmpPF.TextField,
 			PageSize: tmpPF.PageSize || 20,
 			Options: tmpPF.Options || [],
+			// JoinEntity compound display (1:1 / 1:many parent-entity context) — passed straight through
+			// to the picker's entity adapter, which fetch-then-merges the join. No-op when JoinEntity unset.
+			JoinEntity: tmpPF.JoinEntity,
+			JoinField: tmpPF.JoinField,
+			JoinEntityValueField: tmpPF.JoinEntityValueField,
+			JoinEntityDisplayField: tmpPF.JoinEntityDisplayField,
+			JoinEntityFirst: tmpPF.JoinEntityFirst,
+			JoinSeparator: tmpPF.JoinSeparator,
 			// Per-search contextual scope — the generic hook the host fills.
 			BaseFilter: () => this.getContextualSearchFilters(pInput),
 			OnChange: fOnChange,

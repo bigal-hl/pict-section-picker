@@ -51,12 +51,58 @@ declare class PictProviderPicker extends libPictProvider {
      *     evaluated on every search — the generic hook for host-injected CONTEXTUAL scoping (project,
      *     tenant, spec-year, …). The module stays agnostic; the host supplies the closure.
      *   - MapRecord {function} - optional `(record) => {Value, Text}` mapper (overrides Value/TextField).
+     *   - JoinEntity {string} - optional second entity to JOIN for a compound display (e.g. a `LineItem`
+     *     shown with its `Project`). Each searched row must carry the FK (`JoinField`). Because Meadow
+     *     can't join in one read, this is fetch-then-merge: after the primary page resolves, the unique
+     *     FK ids drive ONE `FBL~ID{JoinEntity}~INN~<ids>` request, and the joined display field is
+     *     stitched onto each row (as `Record.JoinName` / `Record.JoinRecord`) + composed into the Text.
+     *   - JoinField {string} - the FK column ON THE SEARCHED ROW pointing at JoinEntity (default `ID{JoinEntity}`).
+     *   - JoinEntityValueField {string} - the PK column on JoinEntity to match (default `ID{JoinEntity}`).
+     *   - JoinEntityDisplayField {string} - the JoinEntity field to display (default `Name`).
+     *   - JoinEntityFirst {boolean} - put the joined value first in the compound (default `true`):
+     *     `JoinName - baseText`; when `false`, `baseText - JoinName`.
+     *   - JoinSeparator {string} - the compound separator (default `' - '`).
      * @return {(pSearchTerm: string, pPage: number) => Promise<{results: Array<any>, hasMore: boolean}>}
      */
     createEntityDataProvider(pConfig: Record<string, any>): (pSearchTerm: string, pPage: number) => Promise<{
         results: Array<any>;
         hasMore: boolean;
     }>;
+    /**
+     * Resolve the JoinEntity options off an entity-source config into a normalized internal shape, or
+     * `false` when no JoinEntity is configured. Centralizes the defaults so the DataProvider and the
+     * ResolveValue builders agree.
+     *
+     * @param {Record<string, any>} pConfig
+     * @return {false | {Entity:string, FKColumn:string, PKColumn:string, DisplayField:string, First:boolean, Separator:string}}
+     */
+    _resolveJoinConfig(pConfig: Record<string, any>): false | {
+        Entity: string;
+        FKColumn: string;
+        PKColumn: string;
+        DisplayField: string;
+        First: boolean;
+        Separator: string;
+    };
+    /**
+     * Compose a compound display from a base text + a joined value, honoring ordering + separator.
+     * Falls back to just the base text when there is no joined value.
+     *
+     * @param {any} pBaseText @param {any} pJoinText @param {boolean} pFirst @param {string} pSeparator
+     * @return {any}
+     */
+    _composeJoinedText(pBaseText: any, pJoinText: any, pFirst: boolean, pSeparator: string): any;
+    /**
+     * Fetch-then-merge the join entity for a page of searched records. Collects the unique FK ids the
+     * rows carry (`JoinConfig.FKColumn`), issues ONE `FBL~{PKColumn}~INN~<ids>` request against the join
+     * entity, and stitches `JoinRecord` + `JoinName` onto each searched row. Resolves the (mutated) same
+     * array; on any error or when there's nothing to join, resolves the records un-decorated (the Text
+     * gracefully degrades to the base field).
+     *
+     * @param {Array<any>} pRecords @param {false | Record<string, any>} pJoinConfig
+     * @return {Promise<Array<any>>}
+     */
+    _decorateRecordsWithJoin(pRecords: Array<any>, pJoinConfig: false | Record<string, any>): Promise<Array<any>>;
     /**
      * Build a `ResolveValue(value) => Promise<{Value,Text}>` for an entity-backed picker, so a
      * pre-bound ID resolves to its display text on first render (fetched + cached by `getEntity`).

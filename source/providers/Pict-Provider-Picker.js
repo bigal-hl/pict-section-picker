@@ -174,6 +174,17 @@ class PictProviderPicker extends libPictProvider
 	 *     evaluated on every search — the generic hook for host-injected CONTEXTUAL scoping (project,
 	 *     tenant, spec-year, …). The module stays agnostic; the host supplies the closure.
 	 *   - MapRecord {function} - optional `(record) => {Value, Text}` mapper (overrides Value/TextField).
+	 *   - JoinEntity {string} - optional second entity to JOIN for a compound display (e.g. a `LineItem`
+	 *     shown with its `Project`). Each searched row must carry the FK (`JoinField`). Because Meadow
+	 *     can't join in one read, this is fetch-then-merge: after the primary page resolves, the unique
+	 *     FK ids drive ONE `FBL~ID{JoinEntity}~INN~<ids>` request, and the joined display field is
+	 *     stitched onto each row (as `Record.JoinName` / `Record.JoinRecord`) + composed into the Text.
+	 *   - JoinField {string} - the FK column ON THE SEARCHED ROW pointing at JoinEntity (default `ID{JoinEntity}`).
+	 *   - JoinEntityValueField {string} - the PK column on JoinEntity to match (default `ID{JoinEntity}`).
+	 *   - JoinEntityDisplayField {string} - the JoinEntity field to display (default `Name`).
+	 *   - JoinEntityFirst {boolean} - put the joined value first in the compound (default `true`):
+	 *     `JoinName - baseText`; when `false`, `baseText - JoinName`.
+	 *   - JoinSeparator {string} - the compound separator (default `' - '`).
 	 * @return {(pSearchTerm: string, pPage: number) => Promise<{results: Array<any>, hasMore: boolean}>}
 	 */
 	createEntityDataProvider(pConfig)
@@ -186,6 +197,7 @@ class PictProviderPicker extends libPictProvider
 		const tmpSort = pConfig.Sort || false;
 		const tmpBaseFilterConfig = pConfig.BaseFilter || '';
 		const tmpMapRecord = (typeof pConfig.MapRecord === 'function') ? pConfig.MapRecord : false;
+		const tmpJoinConfig = this._resolveJoinConfig(pConfig);
 
 		return (pSearchTerm, pPage) => new Promise((resolve, reject) =>
 		{
@@ -217,11 +229,103 @@ class PictProviderPicker extends libPictProvider
 				{
 					if (pError) { return reject(pError); }
 					const tmpList = Array.isArray(pRecords) ? pRecords : [];
-					const tmpResults = tmpList.map((pRecord) => tmpMapRecord
-						? tmpMapRecord(pRecord)
-						: { Value: pRecord[tmpValueField], Text: pRecord[tmpTextField], Record: pRecord });
-					// hasMore: a full page came back, so there is (probably) another. Avoids a Count round-trip.
-					return resolve({ results: tmpResults, hasMore: (tmpList.length >= tmpPageSize) });
+					// JoinEntity (when configured): one INN fetch for the joined rows, stitched onto each
+					// searched row, before mapping — so the option Text can show the compound display.
+					this._decorateRecordsWithJoin(tmpList, tmpJoinConfig).then((pDecorated) =>
+					{
+						const tmpResults = pDecorated.map((pRecord) =>
+						{
+							if (tmpMapRecord) { return tmpMapRecord(pRecord); }
+							const tmpText = tmpJoinConfig
+								? this._composeJoinedText(pRecord[tmpTextField], pRecord.JoinName, tmpJoinConfig.First, tmpJoinConfig.Separator)
+								: pRecord[tmpTextField];
+							return { Value: pRecord[tmpValueField], Text: tmpText, Record: pRecord };
+						});
+						// hasMore: a full page came back, so there is (probably) another. Avoids a Count round-trip.
+						return resolve({ results: tmpResults, hasMore: (tmpList.length >= tmpPageSize) });
+					});
+				});
+		});
+	}
+
+	/**
+	 * Resolve the JoinEntity options off an entity-source config into a normalized internal shape, or
+	 * `false` when no JoinEntity is configured. Centralizes the defaults so the DataProvider and the
+	 * ResolveValue builders agree.
+	 *
+	 * @param {Record<string, any>} pConfig
+	 * @return {false | {Entity:string, FKColumn:string, PKColumn:string, DisplayField:string, First:boolean, Separator:string}}
+	 */
+	_resolveJoinConfig(pConfig)
+	{
+		if (!pConfig || !pConfig.JoinEntity) { return false; }
+		return {
+			Entity: pConfig.JoinEntity,
+			// The FK on the SEARCHED row, and the PK it points at on the join entity (the INN column).
+			FKColumn: pConfig.JoinField || `ID${pConfig.JoinEntity}`,
+			PKColumn: pConfig.JoinEntityValueField || `ID${pConfig.JoinEntity}`,
+			DisplayField: pConfig.JoinEntityDisplayField || 'Name',
+			// Default join-first (mirrors the documented select2 EntitySelector default).
+			First: (pConfig.JoinEntityFirst !== false),
+			Separator: (typeof pConfig.JoinSeparator === 'string') ? pConfig.JoinSeparator : ' - ',
+		};
+	}
+
+	/**
+	 * Compose a compound display from a base text + a joined value, honoring ordering + separator.
+	 * Falls back to just the base text when there is no joined value.
+	 *
+	 * @param {any} pBaseText @param {any} pJoinText @param {boolean} pFirst @param {string} pSeparator
+	 * @return {any}
+	 */
+	_composeJoinedText(pBaseText, pJoinText, pFirst, pSeparator)
+	{
+		if (pJoinText === undefined || pJoinText === null || pJoinText === '') { return pBaseText; }
+		const tmpBase = (pBaseText === undefined || pBaseText === null) ? '' : pBaseText;
+		return pFirst ? `${pJoinText}${pSeparator}${tmpBase}` : `${tmpBase}${pSeparator}${pJoinText}`;
+	}
+
+	/**
+	 * Fetch-then-merge the join entity for a page of searched records. Collects the unique FK ids the
+	 * rows carry (`JoinConfig.FKColumn`), issues ONE `FBL~{PKColumn}~INN~<ids>` request against the join
+	 * entity, and stitches `JoinRecord` + `JoinName` onto each searched row. Resolves the (mutated) same
+	 * array; on any error or when there's nothing to join, resolves the records un-decorated (the Text
+	 * gracefully degrades to the base field).
+	 *
+	 * @param {Array<any>} pRecords @param {false | Record<string, any>} pJoinConfig
+	 * @return {Promise<Array<any>>}
+	 */
+	_decorateRecordsWithJoin(pRecords, pJoinConfig)
+	{
+		return new Promise((resolve) =>
+		{
+			if (!pJoinConfig || !Array.isArray(pRecords) || pRecords.length < 1 || !this.pict.EntityProvider) { return resolve(pRecords); }
+			const tmpIDs = [];
+			const tmpSeen = {};
+			for (let i = 0; i < pRecords.length; i++)
+			{
+				const tmpID = pRecords[i][pJoinConfig.FKColumn];
+				if (tmpID !== undefined && tmpID !== null && tmpID !== '' && !tmpSeen[tmpID]) { tmpSeen[tmpID] = true; tmpIDs.push(tmpID); }
+			}
+			if (tmpIDs.length < 1) { return resolve(pRecords); }
+			const tmpFilter = `FBL~${pJoinConfig.PKColumn}~INN~${tmpIDs.join(',')}`;
+			this.pict.EntityProvider.getEntitySetPage(pJoinConfig.Entity, tmpFilter, 0, tmpIDs.length,
+				(pError, pJoinRecords) =>
+				{
+					if (pError)
+					{
+						this.pict.log.warn(`Pict-Section-Picker [${pJoinConfig.Entity}] join fetch failed; showing un-joined text.`, pError);
+						return resolve(pRecords);
+					}
+					const tmpMap = {};
+					const tmpJoinList = Array.isArray(pJoinRecords) ? pJoinRecords : [];
+					for (let i = 0; i < tmpJoinList.length; i++) { tmpMap[tmpJoinList[i][pJoinConfig.PKColumn]] = tmpJoinList[i]; }
+					for (let i = 0; i < pRecords.length; i++)
+					{
+						const tmpJoinRecord = tmpMap[pRecords[i][pJoinConfig.FKColumn]];
+						if (tmpJoinRecord) { pRecords[i].JoinRecord = tmpJoinRecord; pRecords[i].JoinName = tmpJoinRecord[pJoinConfig.DisplayField]; }
+					}
+					return resolve(pRecords);
 				});
 		});
 	}
@@ -239,6 +343,7 @@ class PictProviderPicker extends libPictProvider
 		const tmpValueField = pConfig.ValueField || `ID${tmpEntity}`;
 		const tmpTextField = pConfig.TextField || 'Name';
 		const tmpMapRecord = (typeof pConfig.MapRecord === 'function') ? pConfig.MapRecord : false;
+		const tmpJoinConfig = this._resolveJoinConfig(pConfig);
 
 		return (pValue) => new Promise((resolve) =>
 		{
@@ -250,7 +355,23 @@ class PictProviderPicker extends libPictProvider
 				(pError, pRecord) =>
 				{
 					if (pError || !pRecord) { return resolve(null); }
-					return resolve(tmpMapRecord ? tmpMapRecord(pRecord) : { Value: pRecord[tmpValueField], Text: pRecord[tmpTextField], Record: pRecord });
+					const fFinish = () =>
+					{
+						if (tmpMapRecord) { return resolve(tmpMapRecord(pRecord)); }
+						const tmpText = tmpJoinConfig
+							? this._composeJoinedText(pRecord[tmpTextField], pRecord.JoinName, tmpJoinConfig.First, tmpJoinConfig.Separator)
+							: pRecord[tmpTextField];
+						return resolve({ Value: pRecord[tmpValueField], Text: tmpText, Record: pRecord });
+					};
+					// JoinEntity: resolve the single joined record (cached getEntity) for the compound label.
+					const tmpFK = tmpJoinConfig ? pRecord[tmpJoinConfig.FKColumn] : null;
+					if (!tmpJoinConfig || tmpFK === undefined || tmpFK === null || tmpFK === '') { return fFinish(); }
+					this.pict.EntityProvider.getEntity(tmpJoinConfig.Entity, tmpFK,
+						(pJoinError, pJoinRecord) =>
+						{
+							if (!pJoinError && pJoinRecord) { pRecord.JoinRecord = pJoinRecord; pRecord.JoinName = pJoinRecord[tmpJoinConfig.DisplayField]; }
+							return fFinish();
+						});
 				});
 		});
 	}
