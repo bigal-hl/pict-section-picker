@@ -162,6 +162,24 @@ OnCreate: (pTerm) =>
 | `OnCreate` | — | `(term) => {Value, Text}` to enable creatable entries. |
 | `OnChange` | — | Called after a selection: single → `(value, record)`, multi → `(values, records)`. |
 
+## View methods
+
+Call these on the picker view instance — `this.pict.views['<hash>']`:
+
+| Method | Description |
+|--------|-------------|
+| `render()` | Paint (or repaint) the control into its destination. |
+| `getValue()` | The current selection — a scalar in single mode, an array of values in multi mode. |
+| `setValue(pValue)` | Set the selection programmatically — the supported counterpart to `getValue()`. Single mode takes a scalar; multi mode takes an array (or a csv string). Writes through to the bound address(es), resolves the display label of any unknown value (from the loaded options, else via `ResolveValue` in async mode), and repaints. Does **not** fire `OnChange` — it is a programmatic set (e.g. a host marshaling a form value into the control), not a user pick. Returns the view for chaining. |
+| `getSelectedRecords()` | (multi) The full `{Value, Text}` record list for the current selection. |
+
+```javascript
+const tmpPicker = this.pict.views['AuthorPicker'];
+tmpPicker.setValue(141);            // single: select author 141 (label resolves via ResolveValue if async)
+tmpPicker.setValue([ 2, 10, 141 ]); // multi: select these values (array or "2,10,141" csv both accepted)
+const tmpSelected = tmpPicker.getValue();
+```
+
 ## Theming
 
 The widget paints from `--theme-color-*` tokens with sensible hex fallbacks, so it inherits the host app's theme. Relevant tokens: `--theme-color-brand-primary`, `--theme-color-text-primary`, `--theme-color-text-muted`, `--theme-color-border-default`, `--theme-color-border-light`, `--theme-color-border-strong`, `--theme-color-background-primary`, `--theme-color-background-panel`, `--theme-color-background-tertiary`.

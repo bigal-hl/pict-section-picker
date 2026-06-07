@@ -31,9 +31,15 @@ const _PickerCSS = /*css*/`
 .pps-chip-x { flex: 0 0 auto; display: inline-flex; align-items: center; cursor: pointer; font-size: 0.78rem; border-radius: 4px; padding: 0.1rem; opacity: 0.7; }
 .pps-chip-x:hover { opacity: 1; background: color-mix(in srgb, var(--theme-color-brand-primary, #156dd1) 22%, transparent); }
 
-/* Transparent full-viewport backdrop: closes on outside click (no document listener). */
-.pps-backdrop { position: fixed; inset: 0; z-index: 0; }
-.pps-pop { position: absolute; z-index: 40; top: calc(100% + 0.3rem); left: 0; right: 0; min-width: 200px; display: none; }
+/* Transparent full-viewport backdrop: closes on outside click (no document listener). Only present
+   while OPEN — otherwise a fixed full-viewport layer would swallow every click on the page. When open,
+   the control is raised above it so its chips/× stay clickable; the dropdown sits above both. */
+.pps-backdrop { position: fixed; inset: 0; z-index: 0; display: none; }
+.pps.pps-open .pps-backdrop { display: block; }
+.pps.pps-open .pps-control { position: relative; z-index: 1; }
+/* Fixed (viewport-anchored) + JS-positioned in open(), so no ancestor's overflow:hidden — a card, a
+   slide-out drawer, a scroll pane — can ever clip the dropdown, whatever the host's layout. */
+.pps-pop { position: fixed; z-index: 40; min-width: 200px; display: none; }
 .pps.pps-open .pps-pop { display: block; }
 .pps-panel { position: relative; z-index: 1; display: flex; flex-direction: column; max-height: min(60vh, 360px);
 	background: var(--theme-color-background-panel, #fff); border: 1px solid var(--theme-color-border-default, #d7dce3);
@@ -60,6 +66,10 @@ const _PickerCSS = /*css*/`
 	padding: 0.45rem 0.6rem; border: none; border-radius: 6px; background: transparent; color: var(--theme-color-brand-primary, #156dd1); font-weight: 600; }
 .pps-create:hover { background: var(--theme-color-background-tertiary, #eceef2); }
 .pps-create-ic { flex: 0 0 auto; display: inline-flex; }
+
+/* Form-input adapter (pict-section-picker/form): the picker host fills its row like the host's
+   native inputs (width:100% forces it to wrap below the label span + fill, matching a scalar input). */
+.pps-form-host { flex: 1 1 100%; min-width: 0; width: 100%; }
 `;
 
 /** @type {Record<string, any>} */
@@ -159,7 +169,10 @@ class PictProviderPicker extends libPictProvider
 	 *   - TextField {string} - record field used as the option Text (default `Name`).
 	 *   - PageSize {number} - records per page (default 20).
 	 *   - Sort {string} - optional field to sort ascending (adds `FSF~<field>~ASC~0`).
-	 *   - BaseFilter {string} - optional always-applied FoxHound filter (AND), e.g. `FBV~IDCustomer~EQ~1`.
+	 *   - BaseFilter {string|Array<string>|function} - optional always-applied FoxHound filter (AND),
+	 *     e.g. `FBV~IDCustomer~EQ~1`. May be a **function** `(searchTerm, page) => string|string[]`
+	 *     evaluated on every search — the generic hook for host-injected CONTEXTUAL scoping (project,
+	 *     tenant, spec-year, …). The module stays agnostic; the host supplies the closure.
 	 *   - MapRecord {function} - optional `(record) => {Value, Text}` mapper (overrides Value/TextField).
 	 * @return {(pSearchTerm: string, pPage: number) => Promise<{results: Array<any>, hasMore: boolean}>}
 	 */
@@ -171,7 +184,7 @@ class PictProviderPicker extends libPictProvider
 		const tmpTextField = pConfig.TextField || 'Name';
 		const tmpPageSize = pConfig.PageSize || 20;
 		const tmpSort = pConfig.Sort || false;
-		const tmpBaseFilter = pConfig.BaseFilter || '';
+		const tmpBaseFilterConfig = pConfig.BaseFilter || '';
 		const tmpMapRecord = (typeof pConfig.MapRecord === 'function') ? pConfig.MapRecord : false;
 
 		return (pSearchTerm, pPage) => new Promise((resolve, reject) =>
@@ -180,6 +193,17 @@ class PictProviderPicker extends libPictProvider
 			{
 				return reject(new Error('Pict-Section-Picker: pict.EntityProvider is not available for entity-backed pickers.'));
 			}
+
+			// Resolve the base filter at SEARCH time. A function form lets the host inject contextual
+			// scoping (e.g. "only this project's line items") without the module knowing the context;
+			// it can return a single stanza, an array of stanzas, or nothing.
+			let tmpBaseFilter = tmpBaseFilterConfig;
+			if (typeof tmpBaseFilterConfig === 'function')
+			{
+				try { tmpBaseFilter = tmpBaseFilterConfig(pSearchTerm, pPage); }
+				catch (pScopeError) { this.pict.log.warn(`Pict-Section-Picker [${tmpEntity}] BaseFilter() threw; ignoring contextual scope.`, pScopeError); tmpBaseFilter = ''; }
+			}
+			if (Array.isArray(tmpBaseFilter)) { tmpBaseFilter = tmpBaseFilter.filter(Boolean).join('~'); }
 
 			const tmpStanzas = [];
 			if (tmpBaseFilter) { tmpStanzas.push(tmpBaseFilter); }

@@ -34,6 +34,20 @@ declare class PictViewPicker extends libPictView {
      */
     _setValue(pValue: any): void;
     _value: any;
+    /**
+     * Public: set the picker's value programmatically (e.g. when a host form marshals data into it).
+     * Accepts a scalar (single mode) or an array / csv string (multi mode), seeds display text for any
+     * unknown values (from the source rows, else async ResolveValue), then repaints.
+     * @param {any} pValue
+     * @return {PictViewPicker} this
+     */
+    setValue(pValue: any): PictViewPicker;
+    /**
+     * Ensure each value has a {Value,Text} in _selectedRecords — from the current source rows when
+     * present, else (async mode) fetched via ResolveValue and painted in when it resolves.
+     * @param {Array<any>} pValues
+     */
+    _seedSelectedRecords(pValues: Array<any>): void;
     /** @return {Array<{Value:any, Text:string}>} The current option source rows (async results or static Options). */
     _sourceRows(): Array<{
         Value: any;
@@ -66,6 +80,12 @@ declare class PictViewPicker extends libPictView {
     onControlKey(pEvent: any): void;
     /** Open the dropdown and focus the search box. */
     open(): void;
+    /**
+     * Position the (fixed) dropdown against the control, flipping above when there's more room there.
+     * Because the popover is position:fixed (viewport-anchored), no ancestor overflow can clip it; the
+     * trade-off is we set its top/left/width ourselves from the control's rect on open.
+     */
+    _positionPop(): void;
     /** Async mode: load + append the next page of results. */
     loadMore(): void;
     /** Close the dropdown. */

@@ -324,6 +324,65 @@ class PictViewPicker extends libPictView
 		}
 	}
 
+	/**
+	 * Public: set the picker's value programmatically (e.g. when a host form marshals data into it).
+	 * Accepts a scalar (single mode) or an array / csv string (multi mode), seeds display text for any
+	 * unknown values (from the source rows, else async ResolveValue), then repaints.
+	 * @param {any} pValue
+	 * @return {PictViewPicker} this
+	 */
+	setValue(pValue)
+	{
+		if (this._isMulti())
+		{
+			let tmpArray = pValue;
+			if (tmpArray === undefined || tmpArray === null || tmpArray === '') { tmpArray = []; }
+			else if (typeof tmpArray === 'string') { tmpArray = tmpArray.split(',').filter((pPart) => pPart !== ''); }
+			else if (!Array.isArray(tmpArray)) { tmpArray = [ tmpArray ]; }
+			this._setValue(tmpArray);
+			this._seedSelectedRecords(tmpArray);
+		}
+		else
+		{
+			this._setValue(pValue);
+			this._selectedText = null;
+			this._seedSelectedRecords((pValue === undefined || pValue === null || pValue === '') ? [] : [ pValue ]);
+		}
+		this.render();
+		return this;
+	}
+
+	/**
+	 * Ensure each value has a {Value,Text} in _selectedRecords — from the current source rows when
+	 * present, else (async mode) fetched via ResolveValue and painted in when it resolves.
+	 * @param {Array<any>} pValues
+	 */
+	_seedSelectedRecords(pValues)
+	{
+		pValues.forEach((pVal) =>
+		{
+			if (pVal === undefined || pVal === null || pVal === '' || this._selectedRecords[String(pVal)]) { return; }
+			const tmpRow = this._sourceRows().find((pRow) => String(pRow.Value) === String(pVal));
+			if (tmpRow)
+			{
+				this._selectedRecords[String(pVal)] = { Value: tmpRow.Value, Text: tmpRow.Text };
+				return;
+			}
+			if (this._isAsync() && typeof this.options.ResolveValue === 'function')
+			{
+				Promise.resolve(this.options.ResolveValue(pVal)).then((pResolved) =>
+				{
+					if (pResolved && pResolved.Text)
+					{
+						this._selectedRecords[String(pVal)] = { Value: pResolved.Value !== undefined ? pResolved.Value : pVal, Text: pResolved.Text };
+						if (!this._isMulti()) { this._selectedText = pResolved.Text; }
+						this._renderValue();
+					}
+				}).catch(() => { /* leave the raw value showing */ });
+			}
+		});
+	}
+
 	/** @return {Array<{Value:any, Text:string}>} The current option source rows (async results or static Options). */
 	_sourceRows()
 	{
@@ -516,9 +575,49 @@ class PictViewPicker extends libPictView
 		this._open = true;
 		this._highlight = -1;
 		this._paintOpen();
+		this._positionPop();
 		if (this._isAsync() && !this._loaded) { this._loadPage(0, false); }
 		const tmpSearch = /** @type {HTMLInputElement} */ (document.getElementById(`PPS_Search_${this.options.PickerHash}`));
 		if (tmpSearch) { tmpSearch.focus(); tmpSearch.select(); }
+	}
+
+	/**
+	 * Position the (fixed) dropdown against the control, flipping above when there's more room there.
+	 * Because the popover is position:fixed (viewport-anchored), no ancestor overflow can clip it; the
+	 * trade-off is we set its top/left/width ourselves from the control's rect on open.
+	 */
+	_positionPop()
+	{
+		const tmpRoot = document.getElementById(`PPS_${this.options.PickerHash}`);
+		if (!tmpRoot) { return; }
+		const tmpControl = tmpRoot.querySelector('.pps-control');
+		const tmpPop = /** @type {HTMLElement} */ (tmpRoot.querySelector('.pps-pop'));
+		const tmpPanel = /** @type {HTMLElement} */ (tmpRoot.querySelector('.pps-panel'));
+		if (!tmpControl || !tmpPop) { return; }
+		const tmpRect = tmpControl.getBoundingClientRect();
+		const tmpGap = 5;
+		const tmpMargin = 8;
+		const tmpVH = window.innerHeight;
+		const tmpVW = window.innerWidth;
+		const tmpWidth = Math.max(200, Math.round(tmpRect.width));
+		tmpPop.style.width = `${tmpWidth}px`;
+		tmpPop.style.left = `${Math.round(Math.max(tmpMargin, Math.min(tmpRect.left, tmpVW - tmpWidth - tmpMargin)))}px`;
+		tmpPop.style.right = 'auto';
+		const tmpSpaceBelow = tmpVH - tmpRect.bottom - tmpGap - tmpMargin;
+		const tmpSpaceAbove = tmpRect.top - tmpGap - tmpMargin;
+		// Prefer the natural downward direction; only flip above when the room below is genuinely cramped.
+		if (tmpSpaceBelow >= 200 || tmpSpaceBelow >= tmpSpaceAbove)
+		{
+			tmpPop.style.top = `${Math.round(tmpRect.bottom + tmpGap)}px`;
+			tmpPop.style.bottom = 'auto';
+			if (tmpPanel) { tmpPanel.style.maxHeight = `${Math.max(140, Math.min(tmpSpaceBelow, 360))}px`; }
+		}
+		else
+		{
+			tmpPop.style.top = 'auto';
+			tmpPop.style.bottom = `${Math.round(tmpVH - tmpRect.top + tmpGap)}px`;
+			if (tmpPanel) { tmpPanel.style.maxHeight = `${Math.max(140, Math.min(tmpSpaceAbove, 360))}px`; }
+		}
 	}
 
 	/** Async mode: load + append the next page of results. */

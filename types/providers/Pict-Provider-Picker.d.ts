@@ -46,7 +46,10 @@ declare class PictProviderPicker extends libPictProvider {
      *   - TextField {string} - record field used as the option Text (default `Name`).
      *   - PageSize {number} - records per page (default 20).
      *   - Sort {string} - optional field to sort ascending (adds `FSF~<field>~ASC~0`).
-     *   - BaseFilter {string} - optional always-applied FoxHound filter (AND), e.g. `FBV~IDCustomer~EQ~1`.
+     *   - BaseFilter {string|Array<string>|function} - optional always-applied FoxHound filter (AND),
+     *     e.g. `FBV~IDCustomer~EQ~1`. May be a **function** `(searchTerm, page) => string|string[]`
+     *     evaluated on every search — the generic hook for host-injected CONTEXTUAL scoping (project,
+     *     tenant, spec-year, …). The module stays agnostic; the host supplies the closure.
      *   - MapRecord {function} - optional `(record) => {Value, Text}` mapper (overrides Value/TextField).
      * @return {(pSearchTerm: string, pPage: number) => Promise<{results: Array<any>, hasMore: boolean}>}
      */

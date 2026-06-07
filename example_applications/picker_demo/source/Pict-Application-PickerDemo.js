@@ -196,6 +196,23 @@ class PickerDemoApplication extends libPictApplication
 		this.pict.views['TagsPicker'].render();
 		this.pict.ContentAssignment.assignContent('#TagsValue', `Tags: <code>${JSON.stringify(this.pict.AppData.Demo.Tags)}</code>`);
 
+		// --- Contextual scoping (Phase 3 enabler): BaseFilter as a FUNCTION, re-evaluated every search.
+		//     The host injects a dynamic scope (here a mutable demo var) without the module knowing it. ---
+		this.pict.AppData.Demo.AuthorScope = '';   // e.g. set to 'FBV~IDAuthor~GT~1000' to scope the search
+		tmpPicker.createEntityPicker('ScopedAuthorPicker',
+			{
+				Entity: 'Author',
+				SearchFields: [ 'Name' ],
+				ValueField: 'IDAuthor',
+				TextField: 'Name',
+				PageSize: 10,
+				BaseFilter: () => this.pict.AppData.Demo.AuthorScope,   // resolved per search
+				DestinationAddress: '#ScopedAuthorPicker',
+				ValueAddress: 'AppData.Demo.ScopedAuthor',
+				Placeholder: 'Search authors (scoped)…',
+			});
+		this.pict.views['ScopedAuthorPicker'].render();
+
 		return super.onAfterInitializeAsync(fCallback);
 	}
 }
