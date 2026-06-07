@@ -20,6 +20,10 @@ const _DEFAULT_CONFIGURATION =
 	Placeholder: 'Select…',
 	Searchable: true,
 	Options: [],
+	// EntityTag badge ordering: false → badge before the label (the select2 default), true → after.
+	// The per-option Tag value rides on each source row (`{Value, Text, Tag}`); the entity adapter
+	// stamps it from an `EntityTag` field name. With no Tag on a row, no badge renders.
+	TagLast: false,
 	// Async data source (Phase 2): DataProvider(searchTerm, page) => Promise<{ results:[{Value,Text}], hasMore }>.
 	// When a function, the widget searches + paginates through it instead of the static Options list.
 	DataProvider: false,
@@ -74,7 +78,7 @@ const _DEFAULT_CONFIGURATION =
 		{
 			Hash: 'Pict-Section-Picker-Single',
 			Template: /*html*/`
-	<span class="pps-value{~NE:Record.NoValue^ pps-placeholder~}">{~D:Record.DisplayText~}</span>
+	<span class="pps-valuebox">{~TS:Pict-Section-Picker-Tag:Record.TagBeforeSlot~}<span class="pps-value{~NE:Record.NoValue^ pps-placeholder~}">{~D:Record.DisplayText~}</span>{~TS:Pict-Section-Picker-Tag:Record.TagAfterSlot~}</span>
 `
 		},
 		{
@@ -95,7 +99,7 @@ const _DEFAULT_CONFIGURATION =
 			// chip never bubbles up to the control's open/close toggle.
 			Hash: 'Pict-Section-Picker-Chip',
 			Template: /*html*/`
-	<span class="pps-chip"><span class="pps-chip-text">{~D:Record.Text~}</span><span class="pps-chip-x" onclick="event.stopPropagation(); _Pict.views['{~D:Record.PickerHash~}'].removeChip('{~D:Record.ValueKey~}')">{~I:Close~}</span></span>
+	<span class="pps-chip">{~TS:Pict-Section-Picker-Tag:Record.TagBeforeSlot~}<span class="pps-chip-text">{~D:Record.Text~}</span>{~TS:Pict-Section-Picker-Tag:Record.TagAfterSlot~}<span class="pps-chip-x" onclick="event.stopPropagation(); _Pict.views['{~D:Record.PickerHash~}'].removeChip('{~D:Record.ValueKey~}')">{~I:Close~}</span></span>
 `
 		},
 		{
@@ -155,8 +159,16 @@ const _DEFAULT_CONFIGURATION =
 			Template: /*html*/`
 	<button type="button" class="pps-option{~NE:Record.Selected^ pps-selected~}{~NE:Record.Highlight^ pps-highlight~}" onclick="_Pict.views['{~D:Record.PickerHash~}'].select('{~D:Record.ValueKey~}')">
 		<span class="pps-option-check{~NE:Record.NotSelected^ pps-hidden~}">{~I:Check~}</span>
-		<span>{~D:Record.Text~}</span>
+		{~TS:Pict-Section-Picker-Tag:Record.TagBeforeSlot~}<span class="pps-option-label">{~D:Record.Text~}</span>{~TS:Pict-Section-Picker-Tag:Record.TagAfterSlot~}
 	</button>
+`
+		},
+		{
+			// EntityTag badge — a small code/number pill rendered before or after the label via the
+			// TagBeforeSlot / TagAfterSlot single-element-array slots on each option / chip / value record.
+			Hash: 'Pict-Section-Picker-Tag',
+			Template: /*html*/`
+		<span class="pps-tag">{~D:Record.Tag~}</span>
 `
 		},
 	],
@@ -249,7 +261,7 @@ class PictViewPicker extends libPictView
 				{
 					if (this._isMulti())
 					{
-						this._selectedRecords[String(pValue)] = { Value: pResolved.Value !== undefined ? pResolved.Value : pValue, Text: pResolved.Text };
+						this._selectedRecords[String(pValue)] = { Value: pResolved.Value !== undefined ? pResolved.Value : pValue, Text: pResolved.Text, Tag: pResolved.Tag };
 						this._renderValue();
 					}
 					else
@@ -365,7 +377,7 @@ class PictViewPicker extends libPictView
 			const tmpRow = this._sourceRows().find((pRow) => String(pRow.Value) === String(pVal));
 			if (tmpRow)
 			{
-				this._selectedRecords[String(pVal)] = { Value: tmpRow.Value, Text: tmpRow.Text };
+				this._selectedRecords[String(pVal)] = { Value: tmpRow.Value, Text: tmpRow.Text, Tag: tmpRow.Tag };
 				return;
 			}
 			if (this._isAsync() && typeof this.options.ResolveValue === 'function')
@@ -374,7 +386,7 @@ class PictViewPicker extends libPictView
 				{
 					if (pResolved && pResolved.Text)
 					{
-						this._selectedRecords[String(pVal)] = { Value: pResolved.Value !== undefined ? pResolved.Value : pVal, Text: pResolved.Text };
+						this._selectedRecords[String(pVal)] = { Value: pResolved.Value !== undefined ? pResolved.Value : pVal, Text: pResolved.Text, Tag: pResolved.Tag };
 						if (!this._isMulti()) { this._selectedText = pResolved.Text; }
 						this._renderValue();
 					}
@@ -383,11 +395,27 @@ class PictViewPicker extends libPictView
 		});
 	}
 
-	/** @return {Array<{Value:any, Text:string}>} The current option source rows (async results or static Options). */
+	/** @return {Array<{Value:any, Text:string, Tag?:any}>} The current option source rows (async results or static Options). */
 	_sourceRows()
 	{
 		if (this._isAsync()) { return this._loadedResults; }
 		return Array.isArray(this.options.Options) ? this.options.Options : [];
+	}
+
+	/**
+	 * Build the EntityTag before/after render slots for a record. Exactly one slot is populated (per the
+	 * TagLast option) and only when a tag value is present, so a tag-less row renders no badge.
+	 * @param {any} pTag @param {boolean} pTagLast
+	 * @return {{TagBeforeSlot:Array<any>, TagAfterSlot:Array<any>}}
+	 */
+	_tagSlots(pTag, pTagLast)
+	{
+		const tmpHasTag = (pTag !== undefined && pTag !== null && pTag !== '');
+		const tmpSlot = tmpHasTag ? [ { Tag: pTag } ] : [];
+		return {
+			TagBeforeSlot: (tmpHasTag && !pTagLast) ? tmpSlot : [],
+			TagAfterSlot: (tmpHasTag && pTagLast) ? tmpSlot : [],
+		};
 	}
 
 	/**
@@ -413,17 +441,18 @@ class PictViewPicker extends libPictView
 			.filter((pVal) => pVal !== undefined && pVal !== null && pVal !== '')
 			.map((pVal) => String(pVal)));
 
+		const tmpTagLast = !!this.options.TagLast;
 		tmpState.Options = tmpSource.map((pOption, pIndex) =>
 		{
 			const tmpIsSelected = tmpSelectedKeys.has(String(pOption.Value));
-			return {
+			return Object.assign({
 				PickerHash: this.options.PickerHash,
 				ValueKey: String(pOption.Value),
 				Text: pOption.Text,
 				Selected: tmpIsSelected,
 				NotSelected: !tmpIsSelected,
 				Highlight: (pIndex === this._highlight),
-			};
+			}, this._tagSlots(pOption.Tag, tmpTagLast));
 		});
 
 		// Cluster options into categories (preserving order), keyed by each source row's optional Group.
@@ -468,7 +497,9 @@ class PictViewPicker extends libPictView
 			const tmpChips = tmpValues.map((pVal) =>
 			{
 				const tmpRecord = this._lookupRecord(pVal);
-				return { PickerHash: this.options.PickerHash, ValueKey: String(pVal), Text: tmpRecord ? tmpRecord.Text : String(pVal) };
+				return Object.assign(
+					{ PickerHash: this.options.PickerHash, ValueKey: String(pVal), Text: tmpRecord ? tmpRecord.Text : String(pVal) },
+					this._tagSlots(tmpRecord ? tmpRecord.Tag : undefined, tmpTagLast));
 			});
 			tmpState.SingleSlot = [];
 			tmpState.MultiSlot = [ {
@@ -482,11 +513,11 @@ class PictViewPicker extends libPictView
 			const tmpValue = this.getValue();
 			const tmpHasValue = (tmpValue !== undefined && tmpValue !== null && tmpValue !== '');
 			const tmpSelected = this._lookupRecord(tmpValue);
-			tmpState.SingleSlot = [ {
+			tmpState.SingleSlot = [ Object.assign({
 				PickerHash: this.options.PickerHash,
 				DisplayText: tmpSelected ? tmpSelected.Text : (this._selectedText || (tmpHasValue ? String(tmpValue) : this.options.Placeholder)),
 				NoValue: !tmpHasValue,
-			} ];
+			}, this._tagSlots(tmpSelected ? tmpSelected.Tag : undefined, tmpTagLast)) ];
 			tmpState.MultiSlot = [];
 		}
 		return tmpState;
@@ -496,7 +527,7 @@ class PictViewPicker extends libPictView
 	 * Find the {Value,Text} record for a value: the stored selection record (authoritative for chips /
 	 * async), else a row in the current source (static Options or loaded results).
 	 * @param {any} pValue
-	 * @return {{Value:any, Text:string}|null}
+	 * @return {{Value:any, Text:string, Tag?:any}|null}
 	 */
 	_lookupRecord(pValue)
 	{
@@ -726,6 +757,7 @@ class PictViewPicker extends libPictView
 		if (!this._isMulti())
 		{
 			this._selectedText = tmpOption.Text;
+			this._selectedRecords[String(tmpOption.Value)] = { Value: tmpOption.Value, Text: tmpOption.Text, Tag: tmpOption.Tag };
 			this._setValue(tmpOption.Value);
 			this._search = '';
 			this._open = false;
@@ -749,7 +781,7 @@ class PictViewPicker extends libPictView
 		else
 		{
 			tmpValues.push(tmpOption.Value);
-			this._selectedRecords[String(pValueKey)] = { Value: tmpOption.Value, Text: tmpOption.Text };
+			this._selectedRecords[String(pValueKey)] = { Value: tmpOption.Value, Text: tmpOption.Text, Tag: tmpOption.Tag };
 		}
 		this._setValue(tmpValues);
 		this._renderValue();
@@ -789,7 +821,7 @@ class PictViewPicker extends libPictView
 			{
 				this.options.Options.unshift(pRecord);
 			}
-			this._selectedRecords[String(pRecord.Value)] = { Value: pRecord.Value, Text: pRecord.Text };
+			this._selectedRecords[String(pRecord.Value)] = { Value: pRecord.Value, Text: pRecord.Text, Tag: pRecord.Tag };
 
 			if (this._isMulti())
 			{

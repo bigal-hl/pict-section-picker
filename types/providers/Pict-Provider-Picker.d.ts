@@ -62,6 +62,9 @@ declare class PictProviderPicker extends libPictProvider {
      *   - JoinEntityFirst {boolean} - put the joined value first in the compound (default `true`):
      *     `JoinName - baseText`; when `false`, `baseText - JoinName`.
      *   - JoinSeparator {string} - the compound separator (default `' - '`).
+     *   - EntityTag {string} - optional record field whose value becomes a `Tag` badge on each option
+     *     (e.g. a `LineItem`'s `ItemNumber`). The picker view renders it as a styled badge alongside the
+     *     label (ordering via the picker's `TagLast` option). Composes with JoinEntity (tag is outermost).
      * @return {(pSearchTerm: string, pPage: number) => Promise<{results: Array<any>, hasMore: boolean}>}
      */
     createEntityDataProvider(pConfig: Record<string, any>): (pSearchTerm: string, pPage: number) => Promise<{
@@ -92,6 +95,21 @@ declare class PictProviderPicker extends libPictProvider {
      * @return {any}
      */
     _composeJoinedText(pBaseText: any, pJoinText: any, pFirst: boolean, pSeparator: string): any;
+    /**
+     * Build the picker option `{ Value, Text, Record[, Tag] }` from a (possibly join-decorated) record:
+     * the Text honors any JoinEntity compound, and a Tag badge is added from `pTagField` when set. Shared
+     * by the DataProvider (per page row) and the ResolveValue (pre-bound value) so they stay consistent.
+     *
+     * @param {any} pRecord @param {string} pValueField @param {string} pTextField
+     * @param {false | Record<string, any>} pJoinConfig @param {string|false} pTagField
+     * @return {{Value:any, Text:any, Record:any, Tag?:any}}
+     */
+    _composeOption(pRecord: any, pValueField: string, pTextField: string, pJoinConfig: false | Record<string, any>, pTagField: string | false): {
+        Value: any;
+        Text: any;
+        Record: any;
+        Tag?: any;
+    };
     /**
      * Fetch-then-merge the join entity for a page of searched records. Collects the unique FK ids the
      * rows carry (`JoinConfig.FKColumn`), issues ONE `FBL~{PKColumn}~INN~<ids>` request against the join

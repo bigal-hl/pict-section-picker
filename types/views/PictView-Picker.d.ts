@@ -48,11 +48,22 @@ declare class PictViewPicker extends libPictView {
      * @param {Array<any>} pValues
      */
     _seedSelectedRecords(pValues: Array<any>): void;
-    /** @return {Array<{Value:any, Text:string}>} The current option source rows (async results or static Options). */
+    /** @return {Array<{Value:any, Text:string, Tag?:any}>} The current option source rows (async results or static Options). */
     _sourceRows(): Array<{
         Value: any;
         Text: string;
+        Tag?: any;
     }>;
+    /**
+     * Build the EntityTag before/after render slots for a record. Exactly one slot is populated (per the
+     * TagLast option) and only when a tag value is present, so a tag-less row renders no badge.
+     * @param {any} pTag @param {boolean} pTagLast
+     * @return {{TagBeforeSlot:Array<any>, TagAfterSlot:Array<any>}}
+     */
+    _tagSlots(pTag: any, pTagLast: boolean): {
+        TagBeforeSlot: Array<any>;
+        TagAfterSlot: Array<any>;
+    };
     /**
      * (Re)compute the picker's render state into AppData: the displayed value / chips + the
      * (search-filtered) option list with selected/highlight flags.
@@ -62,11 +73,12 @@ declare class PictViewPicker extends libPictView {
      * Find the {Value,Text} record for a value: the stored selection record (authoritative for chips /
      * async), else a row in the current source (static Options or loaded results).
      * @param {any} pValue
-     * @return {{Value:any, Text:string}|null}
+     * @return {{Value:any, Text:string, Tag?:any}|null}
      */
     _lookupRecord(pValue: any): {
         Value: any;
         Text: string;
+        Tag?: any;
     } | null;
     /**
      * Load a page of results from the async DataProvider, accumulating (append) or replacing the list.

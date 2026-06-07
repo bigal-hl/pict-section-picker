@@ -125,6 +125,9 @@ class PictInputTypePicker extends libPictInputExtension
 			JoinEntityDisplayField: tmpPF.JoinEntityDisplayField,
 			JoinEntityFirst: tmpPF.JoinEntityFirst,
 			JoinSeparator: tmpPF.JoinSeparator,
+			// EntityTag badge: the record field whose value becomes a Tag pill, ordered by EntityTagLast.
+			EntityTag: tmpPF.EntityTag,
+			TagLast: tmpPF.EntityTagLast,
 			// Per-search contextual scope — the generic hook the host fills.
 			BaseFilter: () => this.getContextualSearchFilters(pInput),
 			OnChange: fOnChange,

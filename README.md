@@ -148,6 +148,31 @@ Meadow can't join in a single read, so this is **fetch-then-merge**: after each 
 
 The same options ride through the form-input adapter (`PictForm.JoinEntity`, …) and the pict-section-recordset entity filters (set `JoinEntity` on the clause) — so an entity filter can show parent context for its options with no host code, layered on top of either the 1:1 (direct-FK / `InternalJoin`) or 1:many (junction / `ExternalJoin`) filter relationship.
 
+## Tag badge (EntityTag)
+
+Show a small code/number badge next to each option — the select2 `EntitySelector` "tag" parity. For entity pickers, `EntityTag` names the record field to badge; the picker renders it as a pill beside the label:
+
+```javascript
+tmpPicker.createEntityPicker('PayItemPicker',
+{
+    Entity: 'PayItem',
+    SearchFields: [ 'Name' ],
+    EntityTag: 'ItemCode',        // each option shows its ItemCode as a badge
+    DestinationAddress: '#PayItemPicker',
+    ValueAddress: 'AppData.Form.IDPayItem',
+});
+// options render as badge + label, e.g.  [201-1] Excavation
+```
+
+Static options can carry a `Tag` directly (`{ Value, Text, Tag }`). The badge rides on the dropdown options, the selected single value, and multi-select chips alike. It composes with JoinEntity — the join folds into the label, the tag stays a separate pill.
+
+| Option | Default | Purpose |
+|---|---|---|
+| `EntityTag` | — | (entity pickers) record field whose value becomes each option's `Tag` badge. |
+| `TagLast` | `false` | `false` → badge before the label; `true` → after. |
+
+Through the form-input adapter + the recordset entity filters these are `PictForm.EntityTag` / `PictForm.EntityTagLast`.
+
 ## Categories
 
 Give option rows an optional `Group` field and the list renders headered sections (preserving order; rows without a `Group` fall into a leading unlabeled section):

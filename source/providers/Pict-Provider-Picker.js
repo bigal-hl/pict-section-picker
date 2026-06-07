@@ -31,6 +31,16 @@ const _PickerCSS = /*css*/`
 .pps-chip-x { flex: 0 0 auto; display: inline-flex; align-items: center; cursor: pointer; font-size: 0.78rem; border-radius: 4px; padding: 0.1rem; opacity: 0.7; }
 .pps-chip-x:hover { opacity: 1; background: color-mix(in srgb, var(--theme-color-brand-primary, #156dd1) 22%, transparent); }
 
+/* EntityTag badge — a small code/number pill shown next to an option / chip / selected value (the
+   select2 EntitySelector "tag" parity). Ordering (before/after the label) is driven by the TagLast
+   option in the view's render state. */
+.pps-tag { flex: 0 0 auto; display: inline-flex; align-items: center; font-size: 0.74rem; font-weight: 600; line-height: 1.25;
+	padding: 0.05rem 0.4rem; border-radius: 5px; white-space: nowrap;
+	background: var(--theme-color-background-tertiary, #eceef2); color: var(--theme-color-text-secondary, #45596b); }
+.pps-valuebox { display: flex; align-items: center; gap: 0.4rem; min-width: 0; }
+.pps-valuebox .pps-value { min-width: 0; }
+.pps-option-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
 /* Transparent full-viewport backdrop: closes on outside click (no document listener). Only present
    while OPEN — otherwise a fixed full-viewport layer would swallow every click on the page. When open,
    the control is raised above it so its chips/× stay clickable; the dropdown sits above both. */
@@ -185,6 +195,9 @@ class PictProviderPicker extends libPictProvider
 	 *   - JoinEntityFirst {boolean} - put the joined value first in the compound (default `true`):
 	 *     `JoinName - baseText`; when `false`, `baseText - JoinName`.
 	 *   - JoinSeparator {string} - the compound separator (default `' - '`).
+	 *   - EntityTag {string} - optional record field whose value becomes a `Tag` badge on each option
+	 *     (e.g. a `LineItem`'s `ItemNumber`). The picker view renders it as a styled badge alongside the
+	 *     label (ordering via the picker's `TagLast` option). Composes with JoinEntity (tag is outermost).
 	 * @return {(pSearchTerm: string, pPage: number) => Promise<{results: Array<any>, hasMore: boolean}>}
 	 */
 	createEntityDataProvider(pConfig)
@@ -198,6 +211,7 @@ class PictProviderPicker extends libPictProvider
 		const tmpBaseFilterConfig = pConfig.BaseFilter || '';
 		const tmpMapRecord = (typeof pConfig.MapRecord === 'function') ? pConfig.MapRecord : false;
 		const tmpJoinConfig = this._resolveJoinConfig(pConfig);
+		const tmpEntityTagField = pConfig.EntityTag || false;
 
 		return (pSearchTerm, pPage) => new Promise((resolve, reject) =>
 		{
@@ -233,14 +247,9 @@ class PictProviderPicker extends libPictProvider
 					// searched row, before mapping — so the option Text can show the compound display.
 					this._decorateRecordsWithJoin(tmpList, tmpJoinConfig).then((pDecorated) =>
 					{
-						const tmpResults = pDecorated.map((pRecord) =>
-						{
-							if (tmpMapRecord) { return tmpMapRecord(pRecord); }
-							const tmpText = tmpJoinConfig
-								? this._composeJoinedText(pRecord[tmpTextField], pRecord.JoinName, tmpJoinConfig.First, tmpJoinConfig.Separator)
-								: pRecord[tmpTextField];
-							return { Value: pRecord[tmpValueField], Text: tmpText, Record: pRecord };
-						});
+						const tmpResults = pDecorated.map((pRecord) => tmpMapRecord
+							? tmpMapRecord(pRecord)
+							: this._composeOption(pRecord, tmpValueField, tmpTextField, tmpJoinConfig, tmpEntityTagField));
 						// hasMore: a full page came back, so there is (probably) another. Avoids a Count round-trip.
 						return resolve({ results: tmpResults, hasMore: (tmpList.length >= tmpPageSize) });
 					});
@@ -283,6 +292,25 @@ class PictProviderPicker extends libPictProvider
 		if (pJoinText === undefined || pJoinText === null || pJoinText === '') { return pBaseText; }
 		const tmpBase = (pBaseText === undefined || pBaseText === null) ? '' : pBaseText;
 		return pFirst ? `${pJoinText}${pSeparator}${tmpBase}` : `${tmpBase}${pSeparator}${pJoinText}`;
+	}
+
+	/**
+	 * Build the picker option `{ Value, Text, Record[, Tag] }` from a (possibly join-decorated) record:
+	 * the Text honors any JoinEntity compound, and a Tag badge is added from `pTagField` when set. Shared
+	 * by the DataProvider (per page row) and the ResolveValue (pre-bound value) so they stay consistent.
+	 *
+	 * @param {any} pRecord @param {string} pValueField @param {string} pTextField
+	 * @param {false | Record<string, any>} pJoinConfig @param {string|false} pTagField
+	 * @return {{Value:any, Text:any, Record:any, Tag?:any}}
+	 */
+	_composeOption(pRecord, pValueField, pTextField, pJoinConfig, pTagField)
+	{
+		const tmpText = pJoinConfig
+			? this._composeJoinedText(pRecord[pTextField], pRecord.JoinName, pJoinConfig.First, pJoinConfig.Separator)
+			: pRecord[pTextField];
+		const tmpOption = { Value: pRecord[pValueField], Text: tmpText, Record: pRecord };
+		if (pTagField) { tmpOption.Tag = pRecord[pTagField]; }
+		return tmpOption;
 	}
 
 	/**
@@ -344,6 +372,7 @@ class PictProviderPicker extends libPictProvider
 		const tmpTextField = pConfig.TextField || 'Name';
 		const tmpMapRecord = (typeof pConfig.MapRecord === 'function') ? pConfig.MapRecord : false;
 		const tmpJoinConfig = this._resolveJoinConfig(pConfig);
+		const tmpEntityTagField = pConfig.EntityTag || false;
 
 		return (pValue) => new Promise((resolve) =>
 		{
@@ -358,10 +387,7 @@ class PictProviderPicker extends libPictProvider
 					const fFinish = () =>
 					{
 						if (tmpMapRecord) { return resolve(tmpMapRecord(pRecord)); }
-						const tmpText = tmpJoinConfig
-							? this._composeJoinedText(pRecord[tmpTextField], pRecord.JoinName, tmpJoinConfig.First, tmpJoinConfig.Separator)
-							: pRecord[tmpTextField];
-						return resolve({ Value: pRecord[tmpValueField], Text: tmpText, Record: pRecord });
+						return resolve(this._composeOption(pRecord, tmpValueField, tmpTextField, tmpJoinConfig, tmpEntityTagField));
 					};
 					// JoinEntity: resolve the single joined record (cached getEntity) for the compound label.
 					const tmpFK = tmpJoinConfig ? pRecord[tmpJoinConfig.FKColumn] : null;
