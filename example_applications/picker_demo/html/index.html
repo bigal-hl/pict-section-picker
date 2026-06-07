@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Picker Demo - pict-section-picker</title>
+		<link rel="stylesheet" href="./css/picker-demo.css" />
+		<!-- PICT Dynamic View CSS Container -->
+		<style id="PICT-CSS"></style>
+		<!-- Load the PICT library -->
+		<script src="./js/pict.min.js" type="text/javascript"></script>
+		<!-- Bootstrap the Application -->
+		<script type="text/javascript">
+//<![CDATA[
+		Pict.safeOnDocumentReady(() => { Pict.safeLoadPictApplication(PickerDemo, 2); });
+//]]>
+		</script>
+	</head>
+	<body>
+		<div class="demo-wrap">
+			<h1>pict-section-picker</h1>
+			<p class="demo-sub">Searchable single-select (MVP) — open, type to filter, ↑/↓ + Enter, click outside to close.</p>
+			<div class="demo-field">
+				<label>Country <span class="demo-tag">static options</span></label>
+				<div id="CountryPicker"></div>
+			</div>
+			<div id="CountryValue" class="demo-value"></div>
+
+			<div class="demo-field" style="margin-top: 1.5rem;">
+				<label>Item <span class="demo-tag">async DataProvider · server pagination</span></label>
+				<div id="ItemPicker"></div>
+			</div>
+			<div id="ItemValue" class="demo-value"></div>
+
+			<div class="demo-field" style="margin-top: 1.5rem;">
+				<label>Author <span class="demo-tag">Meadow entity · live harness</span></label>
+				<div id="AuthorPicker"></div>
+			</div>
+			<div id="AuthorValue" class="demo-value"></div>
+
+			<div class="demo-field" style="margin-top: 1.5rem;">
+				<label>Countries <span class="demo-tag">multi-select · static</span></label>
+				<div id="CountriesPicker"></div>
+			</div>
+			<div id="CountriesValue" class="demo-value"></div>
+
+			<div class="demo-field" style="margin-top: 1.5rem;">
+				<label>Authors <span class="demo-tag">multi-select · live harness</span></label>
+				<div id="AuthorsPicker"></div>
+			</div>
+			<div id="AuthorsValue" class="demo-value"></div>
+
+			<div class="demo-field" style="margin-top: 1.5rem;">
+				<label>Region <span class="demo-tag">categorized · static</span></label>
+				<div id="RegionPicker"></div>
+			</div>
+			<div id="RegionValue" class="demo-value"></div>
+
+			<div class="demo-field" style="margin-top: 1.5rem;">
+				<label>Tags <span class="demo-tag">creatable · multi-select</span></label>
+				<div id="TagsPicker"></div>
+			</div>
+			<div id="TagsValue" class="demo-value"></div>
+		</div>
+		<!-- Load the application bundle -->
+		<script src="./picker_demo.compatible.min.js" type="text/javascript"></script>
+	</body>
+</html>

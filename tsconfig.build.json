@@ -1,0 +1,16 @@
+{
+	"include": ["source"],
+	"compilerOptions":
+	{
+		"target": "es2019",
+		"esModuleInterop": true,
+		"allowJs": true,
+		"checkJs": true,
+		"declaration": true,
+		"emitDeclarationOnly": true,
+		"outDir": "types",
+		"declarationMap": true,
+		"module": "commonjs",
+		"resolveJsonModule": true
+	}
+}

@@ -1,0 +1,51 @@
+body {
+	margin: 0;
+	font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+	background: #f4f6f9;
+	color: #1f2733;
+}
+.demo-wrap {
+	max-width: 440px;
+	margin: 4rem auto;
+	background: #fff;
+	padding: 2rem;
+	border-radius: 12px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+h1 {
+	margin: 0 0 0.25rem;
+	font-size: 1.4rem;
+}
+.demo-sub {
+	margin: 0 0 1.5rem;
+	color: #6b7686;
+	font-size: 0.9rem;
+}
+.demo-field label {
+	display: block;
+	font-size: 0.8rem;
+	font-weight: 600;
+	color: #45505f;
+	margin-bottom: 0.35rem;
+}
+.demo-tag {
+	font-weight: 500;
+	font-size: 0.68rem;
+	text-transform: none;
+	letter-spacing: 0;
+	color: #8a93a3;
+	background: #eef1f5;
+	padding: 0.1rem 0.4rem;
+	border-radius: 999px;
+	margin-left: 0.4rem;
+}
+.demo-value {
+	margin-top: 1rem;
+	font-size: 0.9rem;
+	color: #45505f;
+}
+.demo-value code {
+	background: #eceef2;
+	padding: 0.1rem 0.35rem;
+	border-radius: 4px;
+}
