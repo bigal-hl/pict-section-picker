@@ -49,3 +49,23 @@ h1 {
 	padding: 0.1rem 0.35rem;
 	border-radius: 4px;
 }
+.demo-btns {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 0.4rem;
+	margin-top: 0.5rem;
+}
+.demo-btn {
+	font: inherit;
+	font-size: 0.78rem;
+	cursor: pointer;
+	padding: 0.3rem 0.6rem;
+	border-radius: 6px;
+	border: 1px solid #d7dce3;
+	background: #fff;
+	color: #2e7d74;
+}
+.demo-btn:hover {
+	border-color: #2e7d74;
+	background: #f3faf8;
+}

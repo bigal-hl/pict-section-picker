@@ -213,7 +213,66 @@ class PickerDemoApplication extends libPictApplication
 			});
 		this.pict.views['ScopedAuthorPicker'].render();
 
+		// --- Programmatic control (public setValue API): drive the control from OUTSIDE, the way a host
+		//     form marshals a value INTO the picker during onDataMarshalToForm. setValue() does NOT fire
+		//     OnChange (it's a programmatic set, not a user pick), so the buttons refresh the readout
+		//     themselves via _showProgrammatic(). ---
+		this.pict.AppData.Demo.ProgCountry = '';
+		tmpPicker.createPicker('ProgCountryPicker',
+			{
+				DestinationAddress: '#ProgCountryPicker',
+				ValueAddress: 'AppData.Demo.ProgCountry',
+				Placeholder: 'Set me with the buttons →',
+				Options: _Countries,
+				OnChange: () => this._showProgrammatic(),
+			});
+		this.pict.views['ProgCountryPicker'].render();
+
+		this.pict.AppData.Demo.ProgTags = [];
+		tmpPicker.createPicker('ProgTagsPicker',
+			{
+				Mode: 'multi',
+				DestinationAddress: '#ProgTagsPicker',
+				ValueAddress: 'AppData.Demo.ProgTags',
+				SelectedValuesAddress: 'AppData.Demo.ProgTagsRecords',
+				Placeholder: 'Set me with the buttons →',
+				Options:
+				[
+					{ Value: 'urgent', Text: 'Urgent' },
+					{ Value: 'review', Text: 'Review' },
+					{ Value: 'blocked', Text: 'Blocked' },
+				],
+				OnChange: () => this._showProgrammatic(),
+			});
+		this.pict.views['ProgTagsPicker'].render();
+		this._showProgrammatic();
+
 		return super.onAfterInitializeAsync(fCallback);
+	}
+
+	/** Set the single picker from outside via the public setValue() API, then refresh the readout. */
+	setProgCountry(pValue)
+	{
+		this.pict.views['ProgCountryPicker'].setValue(pValue);
+		this._showProgrammatic();
+	}
+
+	/** Set the multi picker from outside (array OR csv string) via setValue(), then refresh the readout. */
+	setProgTags(pValue)
+	{
+		this.pict.views['ProgTagsPicker'].setValue(pValue);
+		this._showProgrammatic();
+	}
+
+	/** Paint the live getValue() / getSelectedRecords() readout for the programmatic-control pickers. */
+	_showProgrammatic()
+	{
+		const tmpCountry = this.pict.views['ProgCountryPicker'].getValue();
+		const tmpTags = this.pict.views['ProgTagsPicker'].getValue();
+		const tmpRecords = this.pict.views['ProgTagsPicker'].getSelectedRecords();
+		this.pict.ContentAssignment.assignContent('#ProgValue',
+			`single getValue(): <code>${JSON.stringify(tmpCountry)}</code> · multi getValue(): <code>${JSON.stringify(tmpTags)}</code><br>`
+			+ `multi getSelectedRecords(): <code>${JSON.stringify(tmpRecords)}</code>`);
 	}
 }
 

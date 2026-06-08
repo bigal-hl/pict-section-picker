@@ -177,6 +177,9 @@ class PictProviderPicker extends libPictProvider
 	 *   - SearchFields {Array<string>} - fields to LIKE-search (default `['Name']`).
 	 *   - ValueField {string} - record field used as the option Value (default `ID<Entity>`).
 	 *   - TextField {string} - record field used as the option Text (default `Name`).
+	 *   - TextTemplate {string} - optional pict template rendered against the whole record for the option
+	 *       Text (overrides TextField; composes with JoinEntity). Lets a host show a composed, disambiguated
+	 *       label, e.g. `{~DWTF:Record.NameFull:...~} ({~D:Record.Email~})`.
 	 *   - PageSize {number} - records per page (default 20).
 	 *   - Sort {string} - optional field to sort ascending (adds `FSF~<field>~ASC~0`).
 	 *   - BaseFilter {string|Array<string>|function} - optional always-applied FoxHound filter (AND),
@@ -212,6 +215,7 @@ class PictProviderPicker extends libPictProvider
 		const tmpMapRecord = (typeof pConfig.MapRecord === 'function') ? pConfig.MapRecord : false;
 		const tmpJoinConfig = this._resolveJoinConfig(pConfig);
 		const tmpEntityTagField = pConfig.EntityTag || false;
+		const tmpTextTemplate = pConfig.TextTemplate || false;
 
 		return (pSearchTerm, pPage) => new Promise((resolve, reject) =>
 		{
@@ -249,7 +253,7 @@ class PictProviderPicker extends libPictProvider
 					{
 						const tmpResults = pDecorated.map((pRecord) => tmpMapRecord
 							? tmpMapRecord(pRecord)
-							: this._composeOption(pRecord, tmpValueField, tmpTextField, tmpJoinConfig, tmpEntityTagField));
+							: this._composeOption(pRecord, tmpValueField, tmpTextField, tmpJoinConfig, tmpEntityTagField, tmpTextTemplate));
 						// hasMore: a full page came back, so there is (probably) another. Avoids a Count round-trip.
 						return resolve({ results: tmpResults, hasMore: (tmpList.length >= tmpPageSize) });
 					});
@@ -303,11 +307,17 @@ class PictProviderPicker extends libPictProvider
 	 * @param {false | Record<string, any>} pJoinConfig @param {string|false} pTagField
 	 * @return {{Value:any, Text:any, Record:any, Tag?:any}}
 	 */
-	_composeOption(pRecord, pValueField, pTextField, pJoinConfig, pTagField)
+	_composeOption(pRecord, pValueField, pTextField, pJoinConfig, pTagField, pTextTemplate)
 	{
-		const tmpText = pJoinConfig
-			? this._composeJoinedText(pRecord[pTextField], pRecord.JoinName, pJoinConfig.First, pJoinConfig.Separator)
+		// The option label is either a single field (pTextField) or — when a TextTemplate is configured — a
+		// template rendered against the whole record, so a host can show a composed, disambiguated display
+		// (e.g. "Brian Smith (brian@…)") instead of one ambiguous column. JoinEntity still wraps the result.
+		const tmpBaseText = pTextTemplate
+			? this.pict.parseTemplate(pTextTemplate, pRecord)
 			: pRecord[pTextField];
+		const tmpText = pJoinConfig
+			? this._composeJoinedText(tmpBaseText, pRecord.JoinName, pJoinConfig.First, pJoinConfig.Separator)
+			: tmpBaseText;
 		const tmpOption = { Value: pRecord[pValueField], Text: tmpText, Record: pRecord };
 		if (pTagField) { tmpOption.Tag = pRecord[pTagField]; }
 		return tmpOption;
@@ -373,6 +383,7 @@ class PictProviderPicker extends libPictProvider
 		const tmpMapRecord = (typeof pConfig.MapRecord === 'function') ? pConfig.MapRecord : false;
 		const tmpJoinConfig = this._resolveJoinConfig(pConfig);
 		const tmpEntityTagField = pConfig.EntityTag || false;
+		const tmpTextTemplate = pConfig.TextTemplate || false;
 
 		return (pValue) => new Promise((resolve) =>
 		{
@@ -387,7 +398,7 @@ class PictProviderPicker extends libPictProvider
 					const fFinish = () =>
 					{
 						if (tmpMapRecord) { return resolve(tmpMapRecord(pRecord)); }
-						return resolve(this._composeOption(pRecord, tmpValueField, tmpTextField, tmpJoinConfig, tmpEntityTagField));
+						return resolve(this._composeOption(pRecord, tmpValueField, tmpTextField, tmpJoinConfig, tmpEntityTagField, tmpTextTemplate));
 					};
 					// JoinEntity: resolve the single joined record (cached getEntity) for the compound label.
 					const tmpFK = tmpJoinConfig ? pRecord[tmpJoinConfig.FKColumn] : null;

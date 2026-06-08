@@ -115,6 +115,8 @@ class PictInputTypePicker extends libPictInputExtension
 			SearchFields: tmpPF.SearchFields,
 			ValueField: tmpPF.ValueField,
 			TextField: tmpPF.TextField,
+			// Optional composed-display template (overrides TextField); see the picker's TextTemplate option.
+			TextTemplate: tmpPF.TextTemplate,
 			PageSize: tmpPF.PageSize || 20,
 			Options: tmpPF.Options || [],
 			// JoinEntity compound display (1:1 / 1:many parent-entity context) — passed straight through

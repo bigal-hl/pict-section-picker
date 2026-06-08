@@ -99,7 +99,7 @@ const _DEFAULT_CONFIGURATION =
 			// chip never bubbles up to the control's open/close toggle.
 			Hash: 'Pict-Section-Picker-Chip',
 			Template: /*html*/`
-	<span class="pps-chip">{~TS:Pict-Section-Picker-Tag:Record.TagBeforeSlot~}<span class="pps-chip-text">{~D:Record.Text~}</span>{~TS:Pict-Section-Picker-Tag:Record.TagAfterSlot~}<span class="pps-chip-x" onclick="event.stopPropagation(); _Pict.views['{~D:Record.PickerHash~}'].removeChip('{~D:Record.ValueKey~}')">{~I:Close~}</span></span>
+	<span class="pps-chip">{~TS:Pict-Section-Picker-Tag:Record.TagBeforeSlot~}<span class="pps-chip-text" title="{~D:Record.Text~}">{~D:Record.Text~}</span>{~TS:Pict-Section-Picker-Tag:Record.TagAfterSlot~}<span class="pps-chip-x" onclick="event.stopPropagation(); _Pict.views['{~D:Record.PickerHash~}'].removeChip('{~D:Record.ValueKey~}')">{~I:Close~}</span></span>
 `
 		},
 		{
@@ -159,7 +159,7 @@ const _DEFAULT_CONFIGURATION =
 			Template: /*html*/`
 	<button type="button" class="pps-option{~NE:Record.Selected^ pps-selected~}{~NE:Record.Highlight^ pps-highlight~}" onclick="_Pict.views['{~D:Record.PickerHash~}'].select('{~D:Record.ValueKey~}')">
 		<span class="pps-option-check{~NE:Record.NotSelected^ pps-hidden~}">{~I:Check~}</span>
-		{~TS:Pict-Section-Picker-Tag:Record.TagBeforeSlot~}<span class="pps-option-label">{~D:Record.Text~}</span>{~TS:Pict-Section-Picker-Tag:Record.TagAfterSlot~}
+		{~TS:Pict-Section-Picker-Tag:Record.TagBeforeSlot~}<span class="pps-option-label" title="{~D:Record.Text~}">{~D:Record.Text~}</span>{~TS:Pict-Section-Picker-Tag:Record.TagAfterSlot~}
 	</button>
 `
 		},
@@ -351,8 +351,11 @@ class PictViewPicker extends libPictView
 			if (tmpArray === undefined || tmpArray === null || tmpArray === '') { tmpArray = []; }
 			else if (typeof tmpArray === 'string') { tmpArray = tmpArray.split(',').filter((pPart) => pPart !== ''); }
 			else if (!Array.isArray(tmpArray)) { tmpArray = [ tmpArray ]; }
-			this._setValue(tmpArray);
+			// Seed the {Value,Text} records BEFORE persisting, so the SelectedValuesAddress mirror that
+			// _setValue writes carries real labels (not String(value) fallbacks). Mirrors select()'s
+			// seed-then-persist order.
 			this._seedSelectedRecords(tmpArray);
+			this._setValue(tmpArray);
 		}
 		else
 		{

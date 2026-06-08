@@ -67,6 +67,23 @@
 				<div id="ScopedAuthorPicker"></div>
 			</div>
 			<div id="ScopedAuthorValue" class="demo-value"></div>
+
+			<div class="demo-field" style="margin-top: 1.5rem;">
+				<label>Programmatic control <span class="demo-tag">setValue() · external host</span></label>
+				<div id="ProgCountryPicker"></div>
+				<div class="demo-btns">
+					<button type="button" class="demo-btn" onclick="_Pict.PictApplication.setProgCountry('jp')">Set Japan</button>
+					<button type="button" class="demo-btn" onclick="_Pict.PictApplication.setProgCountry('fr')">Set France</button>
+					<button type="button" class="demo-btn" onclick="_Pict.PictApplication.setProgCountry('')">Clear</button>
+				</div>
+				<div id="ProgTagsPicker" style="margin-top: 0.75rem;"></div>
+				<div class="demo-btns">
+					<button type="button" class="demo-btn" onclick="_Pict.PictApplication.setProgTags(['urgent','review'])">Set [urgent, review]</button>
+					<button type="button" class="demo-btn" onclick="_Pict.PictApplication.setProgTags('review,blocked')">From CSV string</button>
+					<button type="button" class="demo-btn" onclick="_Pict.PictApplication.setProgTags([])">Clear</button>
+				</div>
+			</div>
+			<div id="ProgValue" class="demo-value"></div>
 		</div>
 		<!-- Load the application bundle -->
 		<script src="./picker_demo.compatible.min.js" type="text/javascript"></script>
