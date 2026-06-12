@@ -38,6 +38,12 @@ const _DEFAULT_CONFIGURATION =
 	// Creatable (Phase 4): OnCreate(searchTerm) => {Value,Text} | Promise<{Value,Text}>. When set, a
 	// "Create …" row appears for a non-empty search term that doesn't exactly match an existing option.
 	OnCreate: false,
+	// Clearable (single mode): when true, the dropdown gets a pinned "Any" row at the top and the
+	// control grows an inline × while a value is selected — either empties the selection and fires
+	// OnChange(null, null). Filters are the natural fit ("Any" = no constraint); multi mode already
+	// clears via its chips, so the option is ignored there.
+	AllowClear: false,
+	ClearLabel: 'Any',
 
 	Templates:
 	[
@@ -52,6 +58,7 @@ const _DEFAULT_CONFIGURATION =
 	<div class="pps{~NE:Record.IsMulti^ pps-multi~}" id="PPS_{~D:Record.PickerHash~}">
 		<div class="pps-control" role="combobox" tabindex="0" aria-haspopup="listbox" onclick="_Pict.views['{~D:Record.PickerHash~}'].toggle(event)" onkeydown="_Pict.views['{~D:Record.PickerHash~}'].onControlKey(event)">
 			<div class="pps-valuearea" id="PPS_Value_{~D:Record.PickerHash~}">{~T:Pict-Section-Picker-ValueArea~}</div>
+			{~TS:Pict-Section-Picker-ClearX:Record.ClearSlot~}
 			<span class="pps-chevron">{~I:ChevronDown~}</span>
 		</div>
 		<div class="pps-backdrop" onclick="_Pict.views['{~D:Record.PickerHash~}'].close()"></div>
@@ -73,6 +80,17 @@ const _DEFAULT_CONFIGURATION =
 			Template: /*html*/`
 	{~TS:Pict-Section-Picker-Single:Record.SingleSlot~}
 	{~TS:Pict-Section-Picker-Multi:Record.MultiSlot~}
+`
+		},
+		{
+			// The inline clear × (AllowClear) — a control-level adornment between the value area and
+			// the chevron, so it centers next to the text (the value area's children stack as blocks).
+			// Value PRESENCE only changes through full renders (select / clearValue / setValue), so it
+			// never goes stale outside the value-area's targeted repaint. stopPropagation so clearing
+			// never bubbles into the control's open/close toggle — mirrors the multi-chip remove ×.
+			Hash: 'Pict-Section-Picker-ClearX',
+			Template: /*html*/`
+	<span class="pps-clear" title="Clear" onclick="event.stopPropagation(); _Pict.views['{~D:Record.PickerHash~}'].clearValue()">{~I:Close~}</span>
 `
 		},
 		{
@@ -116,11 +134,23 @@ const _DEFAULT_CONFIGURATION =
 		{
 			Hash: 'Pict-Section-Picker-List',
 			Template: /*html*/`
+	{~TS:Pict-Section-Picker-ClearOption:Record.ClearOptionSlot~}
 	{~TS:Pict-Section-Picker-Create:Record.CreateSlot~}
 	{~TS:Pict-Section-Picker-Group:Record.Groups~}
 	{~NE:Record.IsEmpty^<div class="pps-empty">No matches</div>~}
 	{~NE:Record.Loading^<div class="pps-loading">Loading…</div>~}
 	{~TS:Pict-Section-Picker-More:Record.MoreSlot~}
+`
+		},
+		{
+			// The pinned "Any" row (AllowClear, single mode) — selecting it empties the selection.
+			// It shows the check when nothing is selected (i.e. "Any" is the active state).
+			Hash: 'Pict-Section-Picker-ClearOption',
+			Template: /*html*/`
+	<button type="button" class="pps-option pps-clear-option{~NE:Record.Selected^ pps-selected~}" onclick="_Pict.views['{~D:Record.PickerHash~}'].clearValue()">
+		<span class="pps-option-check{~NE:Record.NotSelected^ pps-hidden~}">{~I:Check~}</span>
+		<span class="pps-option-label">{~D:Record.Label~}</span>
+	</button>
 `
 		},
 		{
@@ -484,6 +514,16 @@ class PictViewPicker extends libPictView
 		tmpState.IsMulti = tmpMulti;
 		tmpState.Placeholder = this.options.Placeholder;
 		tmpState.Searchable = !!this.options.Searchable;
+
+		// Clearable (AllowClear, single mode): the pinned "Any" dropdown row — checked when nothing is
+		// selected ("Any" is the active state) — and the control's inline × while a value is selected.
+		const tmpAllowClear = (!tmpMulti && this.options.AllowClear === true);
+		const tmpClearableValue = tmpMulti ? undefined : this.getValue();
+		const tmpClearableHasValue = (tmpClearableValue !== undefined && tmpClearableValue !== null && tmpClearableValue !== '');
+		tmpState.ClearOptionSlot = tmpAllowClear
+			? [ { PickerHash: this.options.PickerHash, Label: this.options.ClearLabel || 'Any', Selected: !tmpClearableHasValue, NotSelected: tmpClearableHasValue } ]
+			: [];
+		tmpState.ClearSlot = (tmpAllowClear && tmpClearableHasValue) ? [ { PickerHash: this.options.PickerHash } ] : [];
 		// Single-element-array conditionals (render the search box / "Load more" only when applicable).
 		tmpState.SearchSlot = this.options.Searchable ? [ { PickerHash: this.options.PickerHash } ] : [];
 		tmpState.Loading = !!this._loading;
@@ -794,6 +834,29 @@ class PictViewPicker extends libPictView
 		if (typeof this.options.OnChange === 'function')
 		{
 			this.options.OnChange(tmpValues, this.getSelectedRecords());
+		}
+	}
+
+	/**
+	 * Clearable (AllowClear, single mode): empty the selection — from the control's inline × or the
+	 * pinned "Any" dropdown row. Closing mirrors select() (clearing IS a selection: "Any"), and
+	 * OnChange(null, null) fires only when there was a value to clear, so clicking "Any" while
+	 * already empty just closes the dropdown.
+	 */
+	clearValue()
+	{
+		if (this._isMulti()) { return; }
+		const tmpValue = this.getValue();
+		const tmpHadValue = (tmpValue !== undefined && tmpValue !== null && tmpValue !== '');
+		this._selectedText = null;
+		this._setValue(null);
+		this._search = '';
+		this._open = false;
+		this._highlight = -1;
+		this.render();
+		if (tmpHadValue && typeof this.options.OnChange === 'function')
+		{
+			this.options.OnChange(null, null);
 		}
 	}
 

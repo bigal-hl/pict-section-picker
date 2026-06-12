@@ -47,6 +47,8 @@ The control renders into `#CountryPicker`; `AppData.Form.Country` holds the sele
 
 `Mode: 'single'` — `ValueAddress` holds the scalar value. Selecting closes the dropdown.
 
+**Clearable:** set `AllowClear: true` to give a single-select a way back to empty — a pinned **"Any"** row at the top of the dropdown (checked while nothing is selected) and an inline **×** on the control while a value is selected. Either empties the selection and fires `OnChange(null, null)`; clearing while already empty just closes. `ClearLabel` renames the row (default `"Any"`). The natural fit is filters, where empty means "no constraint" — the recordset quick filters enable it automatically. Multi mode ignores the option (chips already clear individually).
+
 ### Multi
 
 `Mode: 'multi'` — `ValueAddress` holds an **array** of values, rendered as chips with × buttons. Selecting toggles membership and keeps the dropdown open for rapid multi-pick. Two optional mirror bindings (the `EntitySelectorMultiple` contract):

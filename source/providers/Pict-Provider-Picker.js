@@ -18,6 +18,12 @@ const _PickerCSS = /*css*/`
 .pps-value.pps-placeholder { color: var(--theme-color-text-muted, #6b7686); }
 .pps-chevron { flex: 0 0 auto; display: inline-flex; color: var(--theme-color-text-muted, #6b7686); font-size: 0.8rem; transition: transform 0.15s ease; }
 .pps.pps-open .pps-chevron { transform: rotate(180deg); }
+/* Clearable (AllowClear): the inline × next to the value (mirrors the chip ×) and the pinned "Any" row. */
+.pps-clear { flex: 0 0 auto; display: inline-flex; align-items: center; cursor: pointer; font-size: 0.78rem; border-radius: 4px; padding: 0.1rem;
+	color: var(--theme-color-text-muted, #6b7686); opacity: 0.7; }
+.pps-clear:hover { opacity: 1; background: color-mix(in srgb, var(--theme-color-brand-primary, #156dd1) 22%, transparent); }
+.pps-clear-option { border-bottom: 1px solid var(--theme-color-border-light, #e8ebf0); }
+.pps-clear-option .pps-option-label { color: var(--theme-color-text-muted, #6b7686); font-style: italic; }
 
 /* Multi-select chips. The control hosts a wrapping row of removable tags + a muted placeholder. */
 .pps-multi .pps-control { align-items: flex-start; }

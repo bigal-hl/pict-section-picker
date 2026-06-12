@@ -607,5 +607,78 @@ suite
 				);
 			}
 		);
+
+		suite
+		(
+			'Clearable (AllowClear)',
+			() =>
+			{
+				test
+				(
+					'clearValue empties a single-mode selection and fires OnChange(null, null) once',
+					(fDone) =>
+					{
+						const tmpProvider = newProvider();
+						const tmpChanges = [];
+						const tmpView = tmpProvider.createPicker('ClearablePicker',
+							{
+								Options: COUNTRY_OPTIONS,
+								AllowClear: true,
+								OnChange: (pValue, pRecord) => tmpChanges.push([ pValue, pRecord ]),
+							});
+						tmpView.select('ca');
+						Expect(tmpView.getValue()).to.equal('ca');
+						tmpView.clearValue();
+						Expect(tmpView.getValue()).to.equal(null);
+						Expect(tmpChanges.length).to.equal(2, 'select + clear each fire OnChange');
+						Expect(tmpChanges[1]).to.deep.equal([ null, null ]);
+						// Clearing while already empty closes quietly — no extra OnChange.
+						tmpView.clearValue();
+						Expect(tmpChanges.length).to.equal(2);
+						return fDone();
+					}
+				);
+				test
+				(
+					'state slots: the pinned Any row tracks the selection; the inline × only shows with a value',
+					(fDone) =>
+					{
+						const tmpProvider = newProvider();
+						const tmpView = tmpProvider.createPicker('ClearableSlotPicker', { Options: COUNTRY_OPTIONS, AllowClear: true, ClearLabel: 'Any' });
+						let tmpState = tmpView._buildState();
+						Expect(tmpState.ClearOptionSlot.length).to.equal(1);
+						Expect(tmpState.ClearOptionSlot[0].Label).to.equal('Any');
+						Expect(tmpState.ClearOptionSlot[0].Selected).to.equal(true, 'Any is the active state when nothing is selected');
+						Expect(tmpState.ClearSlot.length).to.equal(0, 'no clear control without a value');
+						tmpView.select('mx');
+						tmpState = tmpView._buildState();
+						Expect(tmpState.ClearOptionSlot[0].Selected).to.equal(false);
+						Expect(tmpState.ClearSlot.length).to.equal(1, 'the clear control appears with a value');
+						return fDone();
+					}
+				);
+				test
+				(
+					'AllowClear is ignored without the option and in multi mode',
+					(fDone) =>
+					{
+						const tmpProvider = newProvider();
+						const tmpPlain = tmpProvider.createPicker('PlainPicker', { Options: COUNTRY_OPTIONS });
+						const tmpPlainState = tmpPlain._buildState();
+						Expect(tmpPlainState.ClearOptionSlot.length).to.equal(0);
+						Expect(tmpPlainState.ClearSlot.length).to.equal(0);
+
+						const tmpMulti = tmpProvider.createPicker('MultiClearPicker', { Options: COUNTRY_OPTIONS, Mode: 'multi', AllowClear: true });
+						tmpMulti.select('us');
+						const tmpMultiState = tmpMulti._buildState();
+						Expect(tmpMultiState.ClearOptionSlot.length).to.equal(0, 'multi clears via chips; AllowClear is single-mode only');
+						Expect(tmpMultiState.ClearSlot.length).to.equal(0);
+						tmpMulti.clearValue();
+						Expect(tmpMulti.getValue()).to.deep.equal([ 'us' ], 'clearValue is a no-op in multi mode');
+						return fDone();
+					}
+				);
+			}
+		);
 	}
 );
