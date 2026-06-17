@@ -18,6 +18,12 @@ const _PickerCSS = /*css*/`
 .pps-value.pps-placeholder { color: var(--theme-color-text-muted, #6b7686); }
 .pps-chevron { flex: 0 0 auto; display: inline-flex; color: var(--theme-color-text-muted, #6b7686); font-size: 0.8rem; transition: transform 0.15s ease; }
 .pps.pps-open .pps-chevron { transform: rotate(180deg); }
+/* Read-only: render the resolved selection as plain, non-interactive text (no border / chevron / clear /
+   dropdown). Used by read-only form views; the value text inherits the surrounding field styling. */
+.pps-readonly .pps-control { border-color: transparent; background: transparent; padding-left: 0; padding-right: 0; cursor: default; pointer-events: none; }
+.pps-readonly .pps-control:hover { border-color: transparent; box-shadow: none; }
+.pps-readonly .pps-chevron, .pps-readonly .pps-clear, .pps-readonly .pps-chip-x { display: none; }
+.pps-readonly .pps-pop, .pps-readonly .pps-backdrop { display: none; }
 /* Clearable (AllowClear): the inline × next to the value (mirrors the chip ×) and the pinned "Any" row. */
 .pps-clear { flex: 0 0 auto; display: inline-flex; align-items: center; cursor: pointer; font-size: 0.78rem; border-radius: 4px; padding: 0.1rem;
 	color: var(--theme-color-text-muted, #6b7686); opacity: 0.7; }

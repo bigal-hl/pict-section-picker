@@ -45,6 +45,10 @@ const _DEFAULT_CONFIGURATION =
 	AllowClear: false,
 	ClearLabel: 'Any',
 
+	// When true, render the resolved selection as plain, non-interactive text (no dropdown / chevron /
+	// clear) — for read-only form views. The host sets PictForm.ReadOnly; the form-input passes it through.
+	ReadOnly: false,
+
 	Templates:
 	[
 		{
@@ -55,7 +59,7 @@ const _DEFAULT_CONFIGURATION =
 			// remove buttons without nesting <button> elements.
 			Hash: 'Pict-Section-Picker-Control',
 			Template: /*html*/`
-	<div class="pps{~NE:Record.IsMulti^ pps-multi~}" id="PPS_{~D:Record.PickerHash~}">
+	<div class="pps{~NE:Record.IsMulti^ pps-multi~}{~NE:Record.ReadOnly^ pps-readonly~}" id="PPS_{~D:Record.PickerHash~}">
 		<div class="pps-control" role="combobox" tabindex="0" aria-haspopup="listbox" onclick="_Pict.views['{~D:Record.PickerHash~}'].toggle(event)" onkeydown="_Pict.views['{~D:Record.PickerHash~}'].onControlKey(event)">
 			<div class="pps-valuearea" id="PPS_Value_{~D:Record.PickerHash~}">{~T:Pict-Section-Picker-ValueArea~}</div>
 			{~TS:Pict-Section-Picker-ClearX:Record.ClearSlot~}
@@ -533,6 +537,7 @@ class PictViewPicker extends libPictView
 		tmpState.IsMulti = tmpMulti;
 		tmpState.Placeholder = this.options.Placeholder;
 		tmpState.Searchable = !!this.options.Searchable;
+		tmpState.ReadOnly = !!this.options.ReadOnly;
 
 		// Clearable (AllowClear, single mode): the pinned "Any" dropdown row — checked when nothing is
 		// selected ("Any" is the active state) — and the control's inline × while a value is selected.

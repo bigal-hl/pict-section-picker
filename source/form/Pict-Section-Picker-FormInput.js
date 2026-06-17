@@ -111,6 +111,7 @@ class PictInputTypePicker extends libPictInputExtension
 			Mode: tmpPF.Multiple ? 'multi' : 'single',
 			Placeholder: tmpPF.Placeholder || (tmpPF.Entity ? `Select ${tmpPF.Entity}…` : 'Select…'),
 			Searchable: (tmpPF.Searchable !== false),
+			ReadOnly: !!tmpPF.ReadOnly,
 			Entity: tmpPF.Entity,
 			SearchFields: tmpPF.SearchFields,
 			ValueField: tmpPF.ValueField,
