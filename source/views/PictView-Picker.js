@@ -100,7 +100,7 @@ const _DEFAULT_CONFIGURATION =
 		{
 			Hash: 'Pict-Section-Picker-Single',
 			Template: /*html*/`
-	<span class="pps-valuebox">{~TS:Pict-Section-Picker-Tag:Record.TagBeforeSlot~}<span class="pps-value{~NE:Record.NoValue^ pps-placeholder~}">{~D:Record.DisplayText~}</span>{~TS:Pict-Section-Picker-Tag:Record.TagAfterSlot~}</span>
+	<span class="pps-valuebox">{~TS:Pict-Section-Picker-Tag:Record.TagBeforeSlot~}<span class="pps-value{~NE:Record.NoValue^ pps-placeholder~}">{~D:Record.DisplayText~}</span>{~TS:Pict-Section-Picker-Tag:Record.TagAfterSlot~}{~TS:Pict-Section-Picker-CardInfo:Record.CardSlot~}</span>
 `
 		},
 		{
@@ -121,7 +121,7 @@ const _DEFAULT_CONFIGURATION =
 			// chip never bubbles up to the control's open/close toggle.
 			Hash: 'Pict-Section-Picker-Chip',
 			Template: /*html*/`
-	<span class="pps-chip">{~TS:Pict-Section-Picker-Tag:Record.TagBeforeSlot~}<span class="pps-chip-text" title="{~D:Record.Text~}">{~D:Record.Text~}</span>{~TS:Pict-Section-Picker-Tag:Record.TagAfterSlot~}<span class="pps-chip-x" onclick="event.stopPropagation(); _Pict.views['{~D:Record.PickerHash~}'].removeChip('{~D:Record.ValueKey~}')">{~I:Close~}</span></span>
+	<span class="pps-chip">{~TS:Pict-Section-Picker-Tag:Record.TagBeforeSlot~}<span class="pps-chip-text" title="{~D:Record.Text~}">{~D:Record.Text~}</span>{~TS:Pict-Section-Picker-Tag:Record.TagAfterSlot~}{~TS:Pict-Section-Picker-CardInfo:Record.CardSlot~}<span class="pps-chip-x" onclick="event.stopPropagation(); _Pict.views['{~D:Record.PickerHash~}'].removeChip('{~D:Record.ValueKey~}')">{~I:Close~}</span></span>
 `
 		},
 		{
@@ -203,6 +203,16 @@ const _DEFAULT_CONFIGURATION =
 			Hash: 'Pict-Section-Picker-Tag',
 			Template: /*html*/`
 		<span class="pps-tag">{~D:Record.Tag~}</span>
+`
+		},
+		{
+			// Preview-card ⓘ trigger — a small affordance next to a selected value / chip that opens the
+			// entity's registered preview card (RecordSetCardManager, a soft dependency). Gated to a
+			// single-element-array CardSlot so it renders only when a card exists for the picker's Entity;
+			// stopPropagation so it never toggles the control or removes a chip.
+			Hash: 'Pict-Section-Picker-CardInfo',
+			Template: /*html*/`
+		<span class="pps-card-info" title="Preview" onclick="event.stopPropagation(); _Pict.providers.RecordSetCardManager.openCard('{~D:Record.Entity~}', '{~D:Record.Value~}', this)">{~I:Info~}</span>
 `
 		},
 	],
@@ -555,6 +565,14 @@ class PictViewPicker extends libPictView
 		tmpState.HasMore = !!(tmpAsync && this._hasMore && !this._loading);
 		tmpState.MoreSlot = tmpState.HasMore ? [ { PickerHash: this.options.PickerHash } ] : [];
 
+		// Preview-card affordance (opt-in): a small ⓘ next to the selected value / chips that opens the
+		// entity's registered preview card. Active only when the host registered a RecordSetCardManager
+		// (soft dependency) that has a card for this picker's Entity, and the picker didn't opt out
+		// (RecordCard !== false). Otherwise the picker renders exactly as before.
+		const tmpCardManager = this.pict.providers.RecordSetCardManager;
+		const tmpCardEntity = this.options.Entity;
+		const tmpCardEnabled = !!(tmpCardManager && tmpCardEntity && (this.options.RecordCard !== false) && (typeof tmpCardManager.hasCard === 'function') && tmpCardManager.hasCard(tmpCardEntity));
+
 		// The single/multi value-area is rendered via single-element-array slots; each slot's element
 		// IS the Record for its sub-template, so it must carry everything that template references.
 		if (tmpMulti)
@@ -565,7 +583,7 @@ class PictViewPicker extends libPictView
 			{
 				const tmpRecord = this._lookupRecord(pVal);
 				return Object.assign(
-					{ PickerHash: this.options.PickerHash, ValueKey: String(pVal), Text: tmpRecord ? tmpRecord.Text : String(pVal) },
+					{ PickerHash: this.options.PickerHash, ValueKey: String(pVal), Text: tmpRecord ? tmpRecord.Text : String(pVal), CardSlot: tmpCardEnabled ? [ { Entity: tmpCardEntity, Value: String(pVal) } ] : [] },
 					this._tagSlots(this._recordTags(tmpRecord), tmpTagLast));
 			});
 			tmpState.SingleSlot = [];
@@ -584,6 +602,7 @@ class PictViewPicker extends libPictView
 				PickerHash: this.options.PickerHash,
 				DisplayText: tmpSelected ? tmpSelected.Text : (this._selectedText || (tmpHasValue ? String(tmpValue) : this.options.Placeholder)),
 				NoValue: !tmpHasValue,
+				CardSlot: (tmpCardEnabled && tmpHasValue) ? [ { Entity: tmpCardEntity, Value: String(tmpValue) } ] : [],
 			}, this._tagSlots(this._recordTags(tmpSelected), tmpTagLast)) ];
 			tmpState.MultiSlot = [];
 		}

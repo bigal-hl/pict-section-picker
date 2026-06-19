@@ -43,6 +43,12 @@ const _PickerCSS = /*css*/`
 .pps-chip-x { flex: 0 0 auto; display: inline-flex; align-items: center; cursor: pointer; font-size: 0.78rem; border-radius: 4px; padding: 0.1rem; opacity: 0.7; }
 .pps-chip-x:hover { opacity: 1; background: color-mix(in srgb, var(--theme-color-brand-primary, #156dd1) 22%, transparent); }
 
+/* Preview-card ⓘ — the opt-in affordance next to a selected value / chip. Stays clickable in
+   read-only mode (where the control itself has pointer-events: none). */
+.pps-card-info { flex: 0 0 auto; display: inline-flex; align-items: center; cursor: pointer; font-size: 0.82rem; padding: 0 0.1rem; opacity: 0.5; color: var(--theme-color-text-muted, #6b7686); }
+.pps-card-info:hover { opacity: 1; color: var(--theme-color-brand-primary, #156dd1); }
+.pps-readonly .pps-card-info { pointer-events: auto; }
+
 /* EntityTag badge — a small code/number pill shown next to an option / chip / selected value (the
    select2 EntitySelector "tag" parity). Ordering (before/after the label) is driven by the TagLast
    option in the view's render state. */
