@@ -722,18 +722,25 @@ class PictViewPicker extends libPictView
 		tmpPop.style.right = 'auto';
 		const tmpSpaceBelow = tmpVH - tmpRect.bottom - tmpGap - tmpMargin;
 		const tmpSpaceAbove = tmpRect.top - tmpGap - tmpMargin;
-		// Prefer the natural downward direction; only flip above when the room below is genuinely cramped.
-		if (tmpSpaceBelow >= 200 || tmpSpaceBelow >= tmpSpaceAbove)
+		// The dropdown's ideal max height; the panel's own .pps-list scrolls whatever doesn't fit.
+		const tmpIdeal = 360;
+		// Open downward when the ideal height fits below, or when below simply has more room than above;
+		// otherwise flip up. Either way the panel's max height is clamped to the room ACTUALLY available
+		// on the chosen side so the list scrolls in-place — never spilling past the viewport edge where
+		// the bottom rows (and the scroll) are unreachable. The previous Math.max(140, …) floor could set
+		// the panel TALLER than the space below it (when 0 < spaceBelow < 140), which is exactly the
+		// "dropdown runs past the fold and you can't scroll to the bottom" bug near the bottom of a screen.
+		if ((tmpSpaceBelow >= tmpIdeal) || (tmpSpaceBelow >= tmpSpaceAbove))
 		{
 			tmpPop.style.top = `${Math.round(tmpRect.bottom + tmpGap)}px`;
 			tmpPop.style.bottom = 'auto';
-			if (tmpPanel) { tmpPanel.style.maxHeight = `${Math.max(140, Math.min(tmpSpaceBelow, 360))}px`; }
+			if (tmpPanel) { tmpPanel.style.maxHeight = `${Math.max(0, Math.round(Math.min(tmpSpaceBelow, tmpIdeal)))}px`; }
 		}
 		else
 		{
 			tmpPop.style.top = 'auto';
 			tmpPop.style.bottom = `${Math.round(tmpVH - tmpRect.top + tmpGap)}px`;
-			if (tmpPanel) { tmpPanel.style.maxHeight = `${Math.max(140, Math.min(tmpSpaceAbove, 360))}px`; }
+			if (tmpPanel) { tmpPanel.style.maxHeight = `${Math.max(0, Math.round(Math.min(tmpSpaceAbove, tmpIdeal)))}px`; }
 		}
 	}
 
